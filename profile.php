@@ -38,8 +38,8 @@ unset($_SESSION['profile_saved']);
 // Retrieve the current user's profile
 if ($role === 'volunteer') {
     $stmt = $pdo->prepare(
-        'SELECT location, research_interests,
-                availability, preferred_format,
+        'SELECT location, postcode, research_interests,
+                availability, age_range, preferred_format,
                 visible_to_researchers
          FROM volunteer_profiles
          WHERE user_id = ?'
@@ -75,6 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($role === 'volunteer') {
 
         $location = posted('location');
+        $postcode = strtoupper(posted('postcode'));
+        $postcode = preg_replace('/\s+/', ' ', $postcode);
+        $ageRange = posted('age_range');
         $availability = posted('availability');
         $format = posted('preferred_format');
 
@@ -84,8 +87,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $profile = [
             'location' => $location,
+            'postcode' => $postcode,
             'research_interests' => $interests,
             'availability' => $availability,
+            'age_range' => $ageRange,
             'preferred_format' => $format,
             'visible_to_researchers' => $visible
         ];
@@ -96,6 +101,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (mb_strlen($availability) > 255) {
             $errors[] = 'Availability is too long.';
+        }
+
+        // Keep the new fields optional while collecting consistent values.
+        $ageOptions = ['', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+        if (!in_array($ageRange, $ageOptions, true)) {
+            $errors[] = 'Select a valid age range.';
+        }
+
+        // Validate UK-format postcodes for demo data (not postcode existence).
+        if ($postcode !== '' && !preg_match(
+            '/^(GIR ?0AA|[A-Z]{1,2}[0-9][0-9A-Z]? ?[0-9][A-Z]{2})$/D',
+            $postcode
+        )) {
+            $errors[] = 'Enter a valid UK-format postcode (e.g. NE1 8ST).';
         }
 
         if (!in_array(
@@ -133,14 +152,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $pdo->prepare(
                     'INSERT INTO volunteer_profiles
-                     (user_id, location, research_interests,
-                      availability, preferred_format,
+                     (user_id, location, postcode, research_interests,
+                      availability, age_range, preferred_format,
                       visible_to_researchers)
-                     VALUES (?, ?, ?, ?, ?, ?)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                        location = VALUES(location),
+                       postcode = VALUES(postcode),
                        research_interests = VALUES(research_interests),
                        availability = VALUES(availability),
+                       age_range = VALUES(age_range),
                        preferred_format = VALUES(preferred_format),
                        visible_to_researchers =
                            VALUES(visible_to_researchers)'
@@ -149,8 +170,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([
                     $userId,
                     $location,
+                    $postcode !== '' ? $postcode : null,
                     $interests,
                     $availability,
+                    $ageRange !== '' ? $ageRange : null,
                     $format === '' ? null : $format,
                     $visible
                 ]);
@@ -250,6 +273,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </p>
 
         <p>
+            <label for="postcode">Postcode (optional):</label>
+            <input type="text"
+                   id="postcode"
+                   name="postcode"
+                   maxlength="10"
+                   autocomplete="postal-code"
+                   placeholder="e.g. NE1 8ST"
+                   value="<?= e($profile['postcode'] ?? '') ?>">
+        </p>
+
+        <p>
+            Your postcode is saved for future location matching;
+            it is not displayed on the public volunteer search page.
+        </p>
+
+        <p>
             <label for="research_interests">
                 Research Interests:
             </label>
@@ -267,6 +306,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                    name="availability"
                    maxlength="255"
                    value="<?= e($profile['availability'] ?? '') ?>">
+        </p>
+
+        <p>
+            <label for="age_range">Age range (optional):</label>
+            <select id="age_range" name="age_range">
+                <?php
+                $ageOptions = [
+                    '' => 'Prefer not to say',
+                    '18-24' => '18–24',
+                    '25-34' => '25–34',
+                    '35-44' => '35–44',
+                    '45-54' => '45–54',
+                    '55-64' => '55–64',
+                    '65+' => '65+'
+                ];
+                $selectedAgeRange = $profile['age_range'] ?? '';
+                foreach ($ageOptions as $value => $label):
+                ?>
+                    <option value="<?= e($value) ?>"
+                        <?= $selectedAgeRange === $value ? 'selected' : '' ?>>
+                        <?= e($label) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </p>
 
         <p>
