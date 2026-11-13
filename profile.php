@@ -78,8 +78,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postcode = strtoupper(posted('postcode'));
         $postcode = preg_replace('/\s+/', ' ', $postcode);
         $ageRange = posted('age_range');
-        $availability = posted('availability');
         $format = posted('preferred_format');
+
+        // Figma availability options: one or both must be selected.
+        $postedDays = $_POST['availability_days'] ?? [];
+        $selectedDays = [];
+        $allowedDays = ['weekdays', 'weekends'];
+
+        if (!is_array($postedDays)) {
+            $errors[] = 'Invalid availability selection.';
+        } else {
+            foreach ($postedDays as $day) {
+                if (!is_string($day) || !in_array($day, $allowedDays, true)) {
+                    $errors[] = 'Invalid availability selection.';
+                    break;
+                }
+                if (!in_array($day, $selectedDays, true)) {
+                    $selectedDays[] = $day;
+                }
+            }
+        }
+
+        if (empty($selectedDays)) {
+            $errors[] = 'Select at least one availability option.';
+        }
+
+        // Keep the existing column compatible with researcher filters.
+        $availability = implode(', ', array_map('ucfirst', $selectedDays));
+
+        // Preserve extra legacy detail (e.g. "Weekday afternoons")
+        // when the volunteer has not changed their day selections.
+        $previousAvailability = (string) ($profile['availability'] ?? '');
+        $previousDays = [];
+        if (stripos($previousAvailability, 'weekday') !== false) {
+            $previousDays[] = 'weekdays';
+        }
+        if (stripos($previousAvailability, 'weekend') !== false) {
+            $previousDays[] = 'weekends';
+        }
+        $originalSelection = $previousDays;
+        $newSelection = $selectedDays;
+        sort($originalSelection);
+        sort($newSelection);
+        if ($previousAvailability !== '' &&
+            !empty($newSelection) &&
+            $originalSelection === $newSelection) {
+            $availability = $previousAvailability;
+        }
 
         $visible = (
             posted('visible_to_researchers') === '1'
@@ -299,14 +344,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ) ?></textarea>
         </p>
 
-        <p>
-            <label for="availability">Availability:</label>
-            <input type="text"
-                   id="availability"
-                   name="availability"
-                   maxlength="255"
-                   value="<?= e($profile['availability'] ?? '') ?>">
-        </p>
+        <fieldset>
+            <legend>Availability (select at least one):</legend>
+            <?php
+            $selectedAvailability = strtolower(
+                (string) ($profile['availability'] ?? '')
+            );
+            ?>
+            <label>
+                <input type="checkbox"
+                       name="availability_days[]"
+                       value="weekdays"
+                       <?= str_contains($selectedAvailability, 'weekday')
+                           ? 'checked' : '' ?>>
+                Weekdays
+            </label>
+            <label>
+                <input type="checkbox"
+                       name="availability_days[]"
+                       value="weekends"
+                       <?= str_contains($selectedAvailability, 'weekend')
+                           ? 'checked' : '' ?>>
+                Weekends
+            </label>
+        </fieldset>
 
         <p>
             <label for="age_range">Age range (optional):</label>
