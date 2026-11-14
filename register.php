@@ -116,120 +116,111 @@ function escape(string $value): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - KV6014 Research Recruitment</title>
+    <title>Create an Account | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="login.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav" aria-label="Main navigation">
+            <a href="login.php">Log in</a>
+            <a href="register.php" class="nav-action" aria-current="page">Sign up</a>
+        </nav>
+    </div>
+</header>
 
-<h1>Research Recruitment</h1>
-<h2>Create an Account</h2>
+<main class="page-shell auth-layout">
+    <section class="auth-intro" aria-label="Welcome">
+        <div class="eyebrow">Research Recruitment</div>
+        <h1>Make research happen together.</h1>
+        <p>Discover university studies, volunteer for research, or recruit participants for your next project.</p>
+        <ul class="auth-points">
+            <li>Explore research opportunities</li>
+            <li>Connect researchers and volunteers</li>
+            <li>Manage your participation in one place</li>
+        </ul>
+    </section>
 
-<?php if ($success): ?>
+    <section class="auth-card" aria-labelledby="register-heading">
+        <?php if ($success): ?>
+            <div class="feedback feedback--success" role="status">
+                <h2 id="register-heading">Account created!</h2>
+                <p>You can now sign in with your new account.</p>
+            </div>
+            <a class="btn btn--primary btn--block" href="login.php">Go to Login</a>
+        <?php else: ?>
+            <h2 id="register-heading">Create an account</h2>
+            <p class="auth-subtitle">Join as a volunteer or an academic researcher.</p>
 
-    <p>Account created successfully!</p>
-    <p>You can now proceed to login once the login page is available.</p>
+            <?php if (!empty($errors)): ?>
+                <div class="feedback feedback--error" role="alert">
+                    <h3>Please check the following</h3>
+                    <ul>
+                        <?php foreach ($errors as $error): ?>
+                            <li><?= escape($error) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
 
-<?php else: ?>
+            <form method="post" action="register.php">
+                <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
+                <div class="form-grid">
+                    <div class="field field--full">
+                        <span class="field-label" id="role-label">I am a...</span>
+                        <div class="role-grid" role="group" aria-labelledby="role-label">
+                            <label class="role-choice">
+                                <input type="radio" name="role" value="volunteer" <?= $role === 'volunteer' ? 'checked' : '' ?> required>
+                                Volunteer
+                            </label>
+                            <label class="role-choice">
+                                <input type="radio" name="role" value="academic" <?= $role === 'academic' ? 'checked' : '' ?> required>
+                                Academic Researcher
+                            </label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="first_name">First name</label>
+                        <input id="first_name" name="first_name" type="text" maxlength="100" value="<?= escape($firstName) ?>" autocomplete="given-name" required>
+                    </div>
+                    <div class="field">
+                        <label for="last_name">Last name</label>
+                        <input id="last_name" name="last_name" type="text" maxlength="100" value="<?= escape($lastName) ?>" autocomplete="family-name" required>
+                    </div>
+                    <div class="field field--full">
+                        <label for="email">Email address</label>
+                        <input id="email" name="email" type="email" maxlength="255" value="<?= escape($email) ?>" autocomplete="email" required>
+                    </div>
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <input id="password" name="password" type="password" minlength="12" maxlength="72" autocomplete="new-password" required>
+                        <span class="form-hint">At least 12 characters.</span>
+                    </div>
+                    <div class="field">
+                        <label for="confirm_password">Confirm password</label>
+                        <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
+                    </div>
+                    <div class="field field--full">
+                        <button class="btn btn--primary btn--block" type="submit">Create Account</button>
+                    </div>
+                </div>
+            </form>
+            <p class="auth-footer-text">Already have an account? <a href="login.php">Log in</a></p>
+        <?php endif; ?>
+    </section>
+</main>
 
-    <?php if (!empty($errors)): ?>
-        <div role="alert">
-            <h3>Please correct the following:</h3>
-            <ul>
-                <?php foreach ($errors as $error): ?>
-                    <li><?= escape($error) ?></li>
-                <?php endforeach; ?>
-            </ul>
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
         </div>
-    <?php endif; ?>
-
-    <form method="post" action="register.php">
-
-        <input
-            type="hidden"
-            name="csrf_token"
-            value="<?= escape($_SESSION['csrf_token']) ?>"
-        >
-
-        <p>
-            <label for="first_name">First Name:</label>
-            <input
-                type="text"
-                id="first_name"
-                name="first_name"
-                maxlength="100"
-                value="<?= escape($firstName) ?>"
-                autocomplete="given-name"
-                required
-            >
-        </p>
-
-        <p>
-            <label for="last_name">Last Name:</label>
-            <input
-                type="text"
-                id="last_name"
-                name="last_name"
-                maxlength="100"
-                value="<?= escape($lastName) ?>"
-                autocomplete="family-name"
-                required
-            >
-        </p>
-
-        <p>
-            <label for="email">Email Address:</label>
-            <input
-                type="email"
-                id="email"
-                name="email"
-                maxlength="255"
-                value="<?= escape($email) ?>"
-                autocomplete="email"
-                required
-            >
-        </p>
-
-        <p>
-            <label for="password">Password:</label>
-            <input
-                type="password"
-                id="password"
-                name="password"
-                minlength="12"
-                autocomplete="new-password"
-                required
-            >
-        </p>
-
-        <p>
-            <label for="confirm_password">Confirm Password:</label>
-            <input
-                type="password"
-                id="confirm_password"
-                name="confirm_password"
-                autocomplete="new-password"
-                required
-            >
-        </p>
-
-        <p>
-            <label for="role">Account Type:</label>
-            <select id="role" name="role" required>
-                <option value="volunteer"
-                    <?= $role === 'volunteer' ? 'selected' : '' ?>>
-                    Volunteer
-                </option>
-                <option value="academic"
-                    <?= $role === 'academic' ? 'selected' : '' ?>>
-                    Academic Researcher
-                </option>
-            </select>
-        </p>
-
-        <button type="submit">Create Account</button>
-
-    </form>
-
-<?php endif; ?>
-
+    </div>
+</footer>
 </body>
 </html>
