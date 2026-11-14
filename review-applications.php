@@ -175,6 +175,22 @@ $stmt->execute([$researcherId]);
 
 $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$screeningStmt = $pdo->prepare(
+    'SELECT aa.application_id, q.question_text, q.required_answer, aa.answer
+     FROM study_application_answers aa
+     INNER JOIN study_eligibility_questions q ON q.question_id = aa.question_id
+     INNER JOIN study_applications a ON a.application_id = aa.application_id
+     INNER JOIN studies s ON s.study_id = a.study_id
+     WHERE s.researcher_id = ?
+     ORDER BY aa.application_id, q.position'
+);
+$screeningStmt->execute([$researcherId]);
+$screeningByApplication = [];
+
+foreach ($screeningStmt->fetchAll(PDO::FETCH_ASSOC) as $response) {
+    $screeningByApplication[(int)$response['application_id']][] = $response;
+}
+
 $pendingCount = 0;
 
 foreach ($applications as $application) {
@@ -280,6 +296,23 @@ foreach ($applications as $application) {
                     ?: 'No message provided.'
                 )) ?>
             </p>
+
+            <h4>Eligibility Screening Responses</h4>
+
+            <?php $responses = $screeningByApplication[(int)$application['application_id']] ?? []; ?>
+            <?php if ($responses): ?>
+                <ol>
+                    <?php foreach ($responses as $response): ?>
+                        <li>
+                            <?= e($response['question_text']) ?>
+                            — Answer: <?= e(ucfirst($response['answer'])) ?>
+                            (Required: <?= e(ucfirst($response['required_answer'])) ?>)
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+            <?php else: ?>
+                <p>No screening responses recorded for this application.</p>
+            <?php endif; ?>
 
             <?php if ($application['reviewed_at']): ?>
                 <p>

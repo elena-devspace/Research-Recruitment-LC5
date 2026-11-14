@@ -3,14 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/recruitment-lock.php';
-
-// Only volunteers can apply for studies.
 $user = requireRole('volunteer');
 $pdo = getConnection();
 
 $volunteerId = (int) $user['user_id'];
-
-// Fictional volunteer accounts authorised for testing.
 $testAccountIds = [1, 6, 7];
 
 $isTestAccount = in_array(
@@ -18,8 +14,6 @@ $isTestAccount = in_array(
     $testAccountIds,
     true
 );
-
-// Escape displayed database values.
 function e($value): string
 {
     return htmlspecialchars(
@@ -28,8 +22,6 @@ function e($value): string
         'UTF-8'
     );
 }
-
-// Validate the study ID.
 $studyId = filter_input(
     INPUT_GET,
     'id',
@@ -41,16 +33,11 @@ if (!is_int($studyId)) {
     http_response_code(400);
     exit('Invalid study ID.');
 }
-
-// Generate CSRF token.
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(
         random_bytes(32)
     );
 }
-
-// Find an available research study.
-// Fictional studies are restricted to test accounts.
 $studyStmt = $pdo->prepare("
     SELECT
         s.study_id,
@@ -94,8 +81,6 @@ if (!$study) {
     http_response_code(404);
     exit('Study unavailable or access denied.');
 }
-
-// Check for an existing volunteer application.
 $applicationCheck = $pdo->prepare("
     SELECT application_id, status
     FROM study_applications
@@ -112,8 +97,6 @@ $applicationCheck->execute([
 $existing = $applicationCheck->fetch(
     PDO::FETCH_ASSOC
 );
-
-// Check for an existing research invitation.
 $invitationCheck = $pdo->prepare("
     SELECT request_id, status
     FROM participation_requests
@@ -132,17 +115,57 @@ $invitation = $invitationCheck->fetch(
     PDO::FETCH_ASSOC
 );
 
+$eligibilityQuestions = $pdo->prepare(
+    'SELECT question_id, question_text, required_answer
+     FROM study_eligibility_questions
+     WHERE study_id = ?
+     ORDER BY position'
+);
+$eligibilityQuestions->execute([$studyId]);
+$questions = $eligibilityQuestions->fetchAll(PDO::FETCH_ASSOC);
+
+function validateScreeningAnswers(array $questions, $submitted): array
+{
+    if (!$questions) {
+        return [[], null];
+    }
+
+    if (!is_array($submitted)) {
+        return [[], 'Please answer every eligibility question.'];
+    }
+
+    $answers = [];
+
+    foreach ($questions as $question) {
+        $id = (int)$question['question_id'];
+        $answer = $submitted[$id] ?? null;
+
+        if (!is_string($answer) || !in_array($answer, ['yes', 'no'], true)) {
+            return [[], 'Please answer every eligibility question.'];
+        }
+
+        if ($answer !== $question['required_answer']) {
+            return [[], 'Your answers do not meet this study’s eligibility requirements.'];
+        }
+
+        $answers[$id] = $answer;
+    }
+
+    if (count($submitted) !== count($questions)) {
+        return [[], 'Invalid eligibility responses. Please refresh the page.'];
+    }
+
+    return [$answers, null];
+}
+
 $error = '';
 $message = '';
-
-// Display a one-time success message after redirect.
+$submittedAnswers = [];
 $success = (
     ($_SESSION['application_success_id'] ?? null) === $studyId
 );
 
 unset($_SESSION['application_success_id']);
-
-// Handle application submission.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $token = $_POST['csrf_token'] ?? null;
@@ -152,7 +175,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? trim($rawMessage)
         : '';
 
-    // Validate CSRF protection.
+    $rawAnswers = $_POST['eligibility_answers'] ?? null;
+    $submittedAnswers = is_array($rawAnswers) ? $rawAnswers : [];
+    [, $screeningError] = validateScreeningAnswers(
+        $questions,
+        $rawAnswers
+    );
     if (
         !is_string($token) ||
         !hash_equals(
@@ -165,14 +193,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Invalid request. Refresh the page.';
 
     } elseif ($existing) {
-
-        // Prevent duplicate applications.
         $error =
             'You have already applied to this study.';
 
     } elseif ($invitation) {
-
-        // Any existing invitation blocks new applications.
         $error =
             'You have already received an invitation ' .
             'for this study. A separate application ' .
@@ -188,22 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'Your application message must be ' .
             'under 1000 bytes.';
 
+    } elseif ($screeningError !== null) {
+
+        $error = $screeningError;
+
     } else {
 
         try {
 
-            /*
-             * Shared database transaction protection.
-             *
-             * Locks the study record and checks for:
-             *
-             * 1. Existing applications.
-             * 2. Existing invitations.
-             *
-             * Prevents simultaneous application and
-             * invitation submissions from both succeeding
-             * when both pages use the shared lock.
-             */
             $conflict = runRecruitmentWrite(
                 $pdo,
                 $studyId,
@@ -214,13 +230,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $studyId,
                     $volunteerId,
                     $message,
-                    $isTestAccount
+                    $isTestAccount,
+                    $rawAnswers
                 ): void {
 
-                    /*
-                     * Recheck study availability
-                     * during database insertion.
-                     */
+                    $currentQuestions = $pdo->prepare(
+                        'SELECT question_id, required_answer
+                         FROM study_eligibility_questions
+                         WHERE study_id = ?
+                         ORDER BY position'
+                    );
+                    $currentQuestions->execute([$studyId]);
+                    [$answers, $validationError] = validateScreeningAnswers(
+                        $currentQuestions->fetchAll(PDO::FETCH_ASSOC),
+                        $rawAnswers
+                    );
+
+                    if ($validationError !== null) {
+                        throw new DomainException('Eligibility questions changed. Refresh the page.');
+                    }
+
                     $insert = $pdo->prepare("
                         INSERT INTO study_applications
                         (
@@ -280,10 +309,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'Study unavailable or invitation exists.'
                         );
                     }
+
+                    if ($answers) {
+                        $applicationId = (int)$pdo->lastInsertId();
+                        $saveAnswer = $pdo->prepare(
+                            'INSERT INTO study_application_answers
+                             (application_id, question_id, answer)
+                             VALUES (?, ?, ?)'
+                        );
+
+                        foreach ($answers as $questionId => $answer) {
+                            $saveAnswer->execute([
+                                $applicationId,
+                                $questionId,
+                                $answer
+                            ]);
+                        }
+                    }
                 }
             );
-
-            // Handle existing participation records.
             if ($conflict === 'application') {
 
                 $error =
@@ -301,8 +345,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'This research study is unavailable.';
 
             } else {
-
-                // Application inserted successfully.
                 $_SESSION['application_success_id'] = $studyId;
 
                 header(
@@ -314,8 +356,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Throwable $exception) {
 
-            // Handle database constraint violations.
-            if (
+            if ($exception instanceof DomainException) {
+                $error = $exception->getMessage();
+            } elseif (
                 $exception instanceof PDOException &&
                 $exception->getCode() === '23000'
             ) {
@@ -344,8 +387,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     http_response_code(405);
     exit('Method not allowed.');
 }
-
-// Refresh application status after submission.
 $applicationCheck->execute([
     $studyId,
     $volunteerId
@@ -354,8 +395,6 @@ $applicationCheck->execute([
 $existing = $applicationCheck->fetch(
     PDO::FETCH_ASSOC
 );
-
-// Refresh invitation status after submission.
 $invitationCheck->execute([
     $studyId,
     $volunteerId
@@ -583,6 +622,32 @@ $invitation = $invitationCheck->fetch(
             name="csrf_token"
             value="<?= e($_SESSION['csrf_token']) ?>"
         >
+
+        <?php if ($questions): ?>
+            <fieldset>
+                <legend>Eligibility screening (all questions required)</legend>
+                <?php foreach ($questions as $question): ?>
+                    <?php $questionId = (int)$question['question_id']; ?>
+                    <p><?= e($question['question_text']) ?></p>
+                    <label>
+                        <input type="radio"
+                               name="eligibility_answers[<?= $questionId ?>]"
+                               value="yes"
+                               <?= ($submittedAnswers[$questionId] ?? '') === 'yes' ? 'checked' : '' ?>
+                               required>
+                        Yes
+                    </label>
+                    <label>
+                        <input type="radio"
+                               name="eligibility_answers[<?= $questionId ?>]"
+                               value="no"
+                               <?= ($submittedAnswers[$questionId] ?? '') === 'no' ? 'checked' : '' ?>
+                               required>
+                        No
+                    </label>
+                <?php endforeach; ?>
+            </fieldset>
+        <?php endif; ?>
 
         <p>
             <label for="message">
