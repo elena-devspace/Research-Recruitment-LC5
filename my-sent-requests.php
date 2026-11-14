@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 
-// Only academic researchers can access this page.
 requireRole('academic');
 
 $user = currentUser();
@@ -11,7 +10,6 @@ $pdo = getConnection();
 
 $researcherId = (int) $user['user_id'];
 
-// Escape displayed values to prevent XSS.
 function escapeSentRequest($value): string
 {
     return htmlspecialchars(
@@ -21,14 +19,13 @@ function escapeSentRequest($value): string
     );
 }
 
-// Retrieve invitations sent by the logged-in researcher.
-// Both the invitation and study must belong to them.
+
 $stmt = $pdo->prepare("
     SELECT
         pr.request_id,
         pr.study_id,
         pr.volunteer_id,
-        pr.message,
+        CASE WHEN pr.status = 'accepted' THEN pr.message END AS message,
         pr.status AS request_status,
         pr.requested_at,
         pr.responded_at,
@@ -38,9 +35,13 @@ $stmt = $pdo->prepare("
         s.status AS study_status,
         s.is_test,
 
-        v.first_name AS volunteer_first_name,
-        v.last_name AS volunteer_last_name,
-        v.email AS volunteer_email
+        CASE WHEN pr.status = 'accepted' THEN v.first_name END AS volunteer_first_name,
+        CASE WHEN pr.status = 'accepted' THEN v.last_name END AS volunteer_last_name,
+        CASE WHEN pr.status = 'accepted' THEN COALESCE(vp.preferred_contact_method, 'email') END AS contact_method,
+        CASE WHEN pr.status = 'accepted' AND COALESCE(vp.preferred_contact_method, 'email') = 'email'
+            THEN v.email END AS volunteer_email,
+        CASE WHEN pr.status = 'accepted' AND vp.preferred_contact_method = 'phone'
+            THEN vp.phone_number END AS volunteer_phone
 
     FROM participation_requests pr
 
@@ -49,6 +50,8 @@ $stmt = $pdo->prepare("
 
     INNER JOIN users v
         ON pr.volunteer_id = v.user_id
+    LEFT JOIN volunteer_profiles vp
+        ON vp.user_id = v.user_id
 
     WHERE pr.researcher_id = :researcher_id
       AND s.researcher_id = :study_researcher_id
@@ -64,7 +67,6 @@ $stmt->execute([
 
 $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Calculate invitation statistics.
 $totalRequests = count($requests);
 
 $pendingRequests = 0;
@@ -203,27 +205,23 @@ foreach ($requests as $request) {
 
         <h4>Volunteer Information</h4>
 
-        <p>
-            Volunteer:
-            <?= escapeSentRequest(
-                $request['volunteer_first_name']
-            ) ?>
-            <?= escapeSentRequest(
-                $request['volunteer_last_name']
-            ) ?>
-        </p>
+        <p>Volunteer ID: <?= (int) $request['volunteer_id'] ?></p>
 
-        <p>
-            Volunteer ID:
-            <?= (int) $request['volunteer_id'] ?>
-        </p>
-
-        <p>
-            Email:
-            <?= escapeSentRequest(
-                $request['volunteer_email']
-            ) ?>
-        </p>
+        <?php if ($request['request_status'] === 'accepted'): ?>
+            <p>
+                Volunteer:
+                <?= escapeSentRequest($request['volunteer_first_name']) ?>
+                <?= escapeSentRequest($request['volunteer_last_name']) ?>
+            </p>
+            <p>Preferred contact method: <?= escapeSentRequest(ucfirst($request['contact_method'])) ?></p>
+            <?php if ($request['contact_method'] === 'phone'): ?>
+                <p>Phone: <?= escapeSentRequest($request['volunteer_phone'] ?: 'Not supplied') ?></p>
+            <?php else: ?>
+                <p>Email: <?= escapeSentRequest($request['volunteer_email']) ?></p>
+            <?php endif; ?>
+        <?php else: ?>
+            <p>Identity and contact details are private until the invitation is accepted.</p>
+        <?php endif; ?>
 
         <h4>Invitation Details</h4>
 
@@ -245,7 +243,11 @@ foreach ($requests as $request) {
 
         <h4>Invitation Message</h4>
 
-        <?php if (!empty($request['message'])): ?>
+        <?php if ($request['request_status'] !== 'accepted'): ?>
+
+            <p>Invitation message hidden until acceptance.</p>
+
+        <?php elseif (!empty($request['message'])): ?>
 
             <p style="white-space: pre-wrap;"><?= escapeSentRequest(
                 $request['message']

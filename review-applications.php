@@ -16,7 +16,6 @@ function e($value): string {
     );
 }
 
-// Only verified researchers can review applications.
 $verification = $pdo->prepare(
     "SELECT verification_status
      FROM academic_profiles
@@ -49,7 +48,6 @@ $error = '';
 $notice = $_SESSION['application_review_notice'] ?? '';
 unset($_SESSION['application_review_notice']);
 
-// Process an application decision.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $token = $_POST['csrf_token'] ?? null;
@@ -85,8 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
 
-            // Only update pending applications
-            // belonging to this researcher's studies.
+
             $update = $pdo->prepare(
                 "UPDATE study_applications a
                  INNER JOIN studies s
@@ -135,11 +132,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Retrieve applications for this academic's studies.
 $stmt = $pdo->prepare(
     "SELECT
         a.application_id,
         a.study_id,
+        a.volunteer_id,
         a.message,
         a.status,
         a.applied_at,
@@ -148,9 +145,13 @@ $stmt = $pdo->prepare(
         s.title AS study_title,
         s.is_test,
 
-        v.first_name,
-        v.last_name,
-        v.email
+        CASE WHEN a.status = 'accepted' THEN v.first_name END AS first_name,
+        CASE WHEN a.status = 'accepted' THEN v.last_name END AS last_name,
+        CASE WHEN a.status = 'accepted' THEN COALESCE(vp.preferred_contact_method, 'email') END AS contact_method,
+        CASE WHEN a.status = 'accepted' AND COALESCE(vp.preferred_contact_method, 'email') = 'email'
+            THEN v.email END AS email,
+        CASE WHEN a.status = 'accepted' AND vp.preferred_contact_method = 'phone'
+            THEN vp.phone_number END AS phone_number
 
      FROM study_applications a
 
@@ -159,6 +160,8 @@ $stmt = $pdo->prepare(
 
      INNER JOIN users v
          ON v.user_id = a.volunteer_id
+     LEFT JOIN volunteer_profiles vp
+         ON vp.user_id = v.user_id
 
      WHERE s.researcher_id = ?
 
@@ -243,16 +246,19 @@ foreach ($applications as $application) {
                 <?= (int)$application['application_id'] ?>
             </p>
 
-            <p>
-                Volunteer:
-                <?= e($application['first_name']) ?>
-                <?= e($application['last_name']) ?>
-            </p>
+            <p>Volunteer ID: <?= (int) $application['volunteer_id'] ?></p>
 
-            <p>
-                Email:
-                <?= e($application['email']) ?>
-            </p>
+            <?php if ($application['status'] === 'accepted'): ?>
+                <p>Volunteer: <?= e($application['first_name']) ?> <?= e($application['last_name']) ?></p>
+                <p>Preferred contact method: <?= e(ucfirst($application['contact_method'])) ?></p>
+                <?php if ($application['contact_method'] === 'phone'): ?>
+                    <p>Phone: <?= e($application['phone_number'] ?: 'Not supplied') ?></p>
+                <?php else: ?>
+                    <p>Email: <?= e($application['email']) ?></p>
+                <?php endif; ?>
+            <?php else: ?>
+                <p>Identity and contact details are private while this application is not accepted.</p>
+            <?php endif; ?>
 
             <p>
                 Applied At:

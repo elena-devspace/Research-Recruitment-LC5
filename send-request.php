@@ -4,7 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/recruitment-lock.php';
 
-// Only academic researchers can send invitations.
 requireRole('academic');
 
 $user = currentUser();
@@ -12,7 +11,6 @@ $pdo = getConnection();
 
 $researcherId = (int) $user['user_id'];
 
-// Escape displayed database values.
 function escapeInvite($value): string
 {
     return htmlspecialchars(
@@ -22,7 +20,6 @@ function escapeInvite($value): string
     );
 }
 
-// Only verified academics may send invitations.
 $verifyStmt = $pdo->prepare("
     SELECT verification_status
     FROM academic_profiles
@@ -39,7 +36,6 @@ if ($verifyStmt->fetchColumn() !== 'verified') {
     );
 }
 
-// Validate the volunteer ID.
 $volunteerId = filter_input(
     INPUT_GET,
     'volunteer_id',
@@ -52,12 +48,9 @@ if (!is_int($volunteerId)) {
     exit('Invalid volunteer ID.');
 }
 
-// The volunteer must have agreed to be discoverable.
 $volunteerStmt = $pdo->prepare("
     SELECT
-        u.user_id,
-        u.first_name,
-        u.last_name
+        u.user_id
     FROM users u
     INNER JOIN volunteer_profiles vp
         ON vp.user_id = u.user_id
@@ -78,7 +71,6 @@ if (!$volunteer) {
     );
 }
 
-// Only allow invitations to the researcher's own open studies.
 $studyStmt = $pdo->prepare("
     SELECT
         study_id,
@@ -99,7 +91,6 @@ $allowedStudyIds = array_map(
     array_column($studies, 'study_id')
 );
 
-// Generate CSRF token.
 if (empty($_SESSION['request_csrf'])) {
     $_SESSION['request_csrf'] = bin2hex(
         random_bytes(32)
@@ -110,19 +101,16 @@ $error = '';
 $message = '';
 $selectedStudyId = 0;
 
-// Show a one-time success message after redirect.
 $success = (
     ($_SESSION['invitation_sent_to'] ?? null) === $volunteerId
 );
 
 unset($_SESSION['invitation_sent_to']);
 
-// Handle invitation submission.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $token = $_POST['csrf_token'] ?? '';
 
-    // Validate CSRF protection.
     if (
         !is_string($token) ||
         !hash_equals(
@@ -134,7 +122,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit('Invalid request token.');
     }
 
-    // Validate selected study.
     $studyId = filter_input(
         INPUT_POST,
         'study_id',
@@ -146,7 +133,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? $studyId
         : 0;
 
-    // Read optional invitation message.
     $rawMessage = $_POST['message'] ?? '';
 
     $message = is_string($rawMessage)
@@ -172,17 +158,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
 
-            /*
-             * Shared database transaction protection.
-             *
-             * Locks the study record and checks for:
-             *
-             * 1. Existing volunteer applications.
-             * 2. Existing research invitations.
-             *
-             * The insertion takes place while the
-             * transaction holds the lock.
-             */
             $conflict = runRecruitmentWrite(
                 $pdo,
                 $studyId,
@@ -196,10 +171,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message
                 ): void {
 
-                    /*
-                     * Revalidate the study, researcher
-                     * and volunteer during insertion.
-                     */
                     $insert = $pdo->prepare("
                         INSERT INTO participation_requests
                         (
@@ -257,7 +228,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             );
 
-            // Handle any existing participation records.
             if ($conflict === 'application') {
 
                 $error =
@@ -276,7 +246,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             } else {
 
-                // Invitation inserted successfully.
                 $_SESSION['invitation_sent_to'] = $volunteerId;
 
                 header(
@@ -289,7 +258,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Throwable $exception) {
 
-            // Record technical errors without exposing details.
             error_log(
                 'Invitation error: ' .
                 $exception->getMessage()
@@ -341,10 +309,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <h2>Invite Volunteer</h2>
 
-<h3>
-    <?= escapeInvite($volunteer['first_name']) ?>
-    <?= escapeInvite($volunteer['last_name']) ?>
-</h3>
+<h3>Volunteer #<?= (int) $volunteerId ?></h3>
+<p>Personal contact details are private until this volunteer accepts an invitation.</p>
 
 <p>
     Volunteer ID:

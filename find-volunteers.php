@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 
-// Only academic researchers can access this page.
 requireRole('academic');
 
 $user = currentUser();
@@ -11,7 +10,6 @@ $pdo = getConnection();
 
 $researcherId = (int) $user['user_id'];
 
-// Check researcher verification.
 $verifyStmt = $pdo->prepare("
     SELECT verification_status
     FROM academic_profiles
@@ -33,7 +31,6 @@ if ($verificationStatus !== 'verified') {
     );
 }
 
-// Escape displayed database values.
 function escapeVolunteerValue($value): string
 {
     return htmlspecialchars(
@@ -43,7 +40,6 @@ function escapeVolunteerValue($value): string
     );
 }
 
-// Read search filters.
 function volunteerSearchInput(string $key): string
 {
     $value = $_GET[$key] ?? '';
@@ -62,13 +58,10 @@ if (!in_array($format, $allowedFormats, true)) {
     $format = '';
 }
 
-// Only explicitly visible volunteer profiles
-// can appear in search results.
+
 $sql = "
     SELECT
         u.user_id,
-        u.first_name,
-        u.last_name,
         vp.location,
         vp.research_interests,
         vp.availability,
@@ -82,7 +75,6 @@ $sql = "
 
 $params = [];
 
-// Filter by research interests.
 if ($keyword !== '') {
     $sql .= "
         AND vp.research_interests LIKE :keyword
@@ -91,7 +83,6 @@ if ($keyword !== '') {
     $params['keyword'] = '%' . $keyword . '%';
 }
 
-// Filter by location.
 if ($location !== '') {
     $sql .= "
         AND vp.location LIKE :location
@@ -100,7 +91,6 @@ if ($location !== '') {
     $params['location'] = '%' . $location . '%';
 }
 
-// Filter by availability.
 if ($availability !== '') {
     $sql .= "
         AND vp.availability LIKE :availability
@@ -109,7 +99,6 @@ if ($availability !== '') {
     $params['availability'] = '%' . $availability . '%';
 }
 
-// Filter by preferred participation format.
 if ($format !== '') {
     if ($format === 'either') {
         $sql .= "
@@ -125,7 +114,7 @@ if ($format !== '') {
 }
 
 $sql .= "
-    ORDER BY u.first_name ASC, u.last_name ASC
+    ORDER BY u.user_id ASC
     LIMIT 100
 ";
 
@@ -226,6 +215,7 @@ $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <hr>
 
 <h3>Available Volunteers</h3>
+<p>Names and contact details are private until an invitation is accepted.</p>
 
 <p>
     Volunteers found: <?= count($volunteers) ?>
@@ -239,10 +229,7 @@ $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <?php foreach ($volunteers as $volunteer): ?>
 
-        <h4>
-            <?= escapeVolunteerValue($volunteer['first_name']) ?>
-            <?= escapeVolunteerValue($volunteer['last_name']) ?>
-        </h4>
+        <h4>Volunteer #<?= (int) $volunteer['user_id'] ?></h4>
 
         <p>
             Volunteer ID:
@@ -275,7 +262,6 @@ $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             ) ?>
         </p>
 
-        <!-- Invite volunteer to a research study -->
         <p>
             <a href="send-request.php?volunteer_id=<?= (int) $volunteer['user_id'] ?>">
                 Invite to Research Study
