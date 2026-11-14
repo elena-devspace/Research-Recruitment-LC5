@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/recruitment-lock.php';
+require_once __DIR__ . '/study-capacity.php';
 
 requireRole('academic');
 
@@ -85,6 +86,19 @@ $studyStmt = $pdo->prepare("
 $studyStmt->execute([$researcherId]);
 
 $studies = $studyStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$capacityByStudy = [];
+$availableStudyCount = 0;
+
+foreach ($studies as $study) {
+    $studyId = (int) $study['study_id'];
+    $capacityByStudy[$studyId] = getStudyCapacity($pdo, $studyId);
+    $remaining = $capacityByStudy[$studyId]['remaining'];
+
+    if ($remaining === null || $remaining > 0) {
+        $availableStudyCount++;
+    }
+}
 
 $allowedStudyIds = array_map(
     'intval',
@@ -170,6 +184,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $volunteerId,
                     $message
                 ): void {
+
+                    $capacity = getStudyCapacity($pdo, $studyId, true);
+
+                    if ($capacity === null) {
+                        throw new RuntimeException('Study unavailable.');
+                    }
+
+                    if (
+                        $capacity['remaining'] !== null &&
+                        $capacity['remaining'] < 1
+                    ) {
+                        throw new DomainException('study_full');
+                    }
 
                     $insert = $pdo->prepare("
                         INSERT INTO participation_requests
@@ -264,10 +291,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             if (
+                $exception instanceof DomainException &&
+                $exception->getMessage() === 'study_full'
+            ) {
+                $error = 'This research study is full. No further invitations can be sent.';
+            } elseif (
                 $exception instanceof PDOException &&
                 $exception->getCode() === '23000'
             ) {
-
                 $error =
                     'A participation record already exists ' .
                     'for this volunteer and study.';
@@ -344,6 +375,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <h3>Send Research Invitation</h3>
 
+    <?php if ($availableStudyCount === 0): ?>
+        <p role="status">All your open studies are full. No further invitations can be sent.</p>
+    <?php endif; ?>
+
     <form
         method="POST"
         action="send-request.php?volunteer_id=<?= (int) $volunteerId ?>"
@@ -371,20 +406,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </option>
 
                 <?php foreach ($studies as $study): ?>
+                    <?php
+                    $remaining = $capacityByStudy[(int) $study['study_id']]['remaining'];
+                    $isFull = $remaining !== null && $remaining < 1;
+                    ?>
 
                     <option
                         value="<?= (int) $study['study_id'] ?>"
                         <?= $selectedStudyId === (int) $study['study_id']
                             ? 'selected'
                             : '' ?>
+                        <?= $isFull ? 'disabled' : '' ?>
                     >
-
                         <?= escapeInvite($study['title']) ?>
-
                         <?= (int) $study['is_test'] === 1
                             ? ' (Fictional Test Study)'
                             : '' ?>
-
+                        <?= $isFull
+                            ? ' — Full (0 spaces remaining)'
+                            : ($remaining === null
+                                ? ' — No capacity limit'
+                                : ' — ' . $remaining . ' spaces remaining') ?>
                     </option>
 
                 <?php endforeach; ?>
@@ -407,7 +449,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ><?= escapeInvite($message) ?></textarea>
 
         <p>
-            <button type="submit">
+            <button type="submit" <?= $availableStudyCount === 0 ? 'disabled' : '' ?>>
                 Send Invitation
             </button>
         </p>

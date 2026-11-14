@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/study-capacity.php';
 
 $user = requireRole('academic');
 $deletedTitle = $_SESSION['deleted_study_title'] ?? null;
@@ -46,6 +47,11 @@ $stmt->execute([
 ]);
 
 $studies = $stmt->fetchAll();
+$capacityByStudy = [];
+foreach ($studies as $study) {
+    $studyId = (int)$study['study_id'];
+    $capacityByStudy[$studyId] = getStudyCapacity($pdo, $studyId);
+}
 
 $questionStmt = $pdo->prepare(
     'SELECT q.study_id, q.question_text, q.required_answer
@@ -183,11 +189,13 @@ foreach ($questionStmt->fetchAll(PDO::FETCH_ASSOC) as $question) {
                     </ol>
                 <?php endif; ?>
 
+                <?php $capacity = $capacityByStudy[(int)$study['study_id']]; ?>
                 <h4>Participant Capacity</h4>
+                <p><?= $capacity['capacity'] === null ? 'No limit set' : $capacity['capacity'] ?></p>
+                <p>Accepted participants: <?= $capacity['accepted'] ?></p>
                 <p>
-                    <?= $study['participant_capacity'] === null
-                        ? 'Not specified'
-                        : (int)$study['participant_capacity'] ?>
+                    Spaces remaining:
+                    <?= $capacity['remaining'] === null ? 'No limit set' : $capacity['remaining'] ?>
                 </p>
 
                 <h4>Location</h4>

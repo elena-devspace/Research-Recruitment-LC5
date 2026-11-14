@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/study-capacity.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -82,51 +83,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
 
         try {
-
-
-            $update = $pdo->prepare(
-                "UPDATE study_applications a
-                 INNER JOIN studies s
-                     ON s.study_id = a.study_id
-                 SET
-                     a.status = ?,
-                     a.reviewed_at = NOW()
-                 WHERE a.application_id = ?
-                   AND s.researcher_id = ?
-                   AND a.status = 'pending'"
+            $lookup = $pdo->prepare(
+                'SELECT a.study_id
+                 FROM study_applications a
+                 INNER JOIN studies s ON s.study_id = a.study_id
+                 WHERE a.application_id = ? AND s.researcher_id = ?'
             );
+            $lookup->execute([$applicationId, $researcherId]);
+            $studyId = $lookup->fetchColumn();
 
-            $update->execute([
-                $decision,
-                $applicationId,
-                $researcherId
-            ]);
-
-            if ($update->rowCount() === 1) {
-
-                $_SESSION['application_review_notice'] =
-                    $decision === 'accepted'
-                        ? 'Application accepted successfully!'
-                        : 'Application rejected successfully!';
-
-                $_SESSION['csrf_token'] =
-                    bin2hex(random_bytes(32));
-
-                header('Location: review-applications.php');
-                exit;
-
+            if ($studyId === false) {
+                $error = 'Application not found or access denied.';
             } else {
-                $error =
-                    'Application not found, already reviewed, or access denied.';
+                $pdo->beginTransaction();
+                $capacity = getStudyCapacity($pdo, (int)$studyId, true);
+
+                $stateStmt = $pdo->prepare(
+                    'SELECT status FROM study_applications
+                     WHERE application_id = ? AND study_id = ? FOR UPDATE'
+                );
+                $stateStmt->execute([$applicationId, (int)$studyId]);
+                $status = $stateStmt->fetchColumn();
+
+                if ($status !== 'pending') {
+                    $error = 'This application has already been reviewed.';
+                } elseif (
+                    $decision === 'accepted' &&
+                    $capacity['remaining'] !== null &&
+                    $capacity['remaining'] < 1
+                ) {
+                    $error = 'This study is full. No more applications can be accepted.';
+                } else {
+                    $update = $pdo->prepare(
+                        "UPDATE study_applications
+                         SET status = ?, reviewed_at = NOW()
+                         WHERE application_id = ? AND study_id = ? AND status = 'pending'"
+                    );
+                    $update->execute([$decision, $applicationId, (int)$studyId]);
+
+                    if ($update->rowCount() === 1) {
+                        $pdo->commit();
+                        $_SESSION['application_review_notice'] = $decision === 'accepted'
+                            ? 'Application accepted successfully!'
+                            : 'Application rejected successfully!';
+                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                        header('Location: review-applications.php');
+                        exit;
+                    }
+
+                    $error = 'This application could not be updated.';
+                }
+
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
             }
-
         } catch (Throwable $exception) {
-
-            error_log(
-                'Application review error: ' .
-                $exception->getMessage()
-            );
-
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Application review error: ' . $exception->getMessage());
             $error = 'Unable to review application.';
         }
     }
@@ -174,6 +190,13 @@ $stmt = $pdo->prepare(
 $stmt->execute([$researcherId]);
 
 $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$capacityByStudy = [];
+foreach ($applications as $application) {
+    $studyId = (int)$application['study_id'];
+    if (!isset($capacityByStudy[$studyId])) {
+        $capacityByStudy[$studyId] = getStudyCapacity($pdo, $studyId);
+    }
+}
 
 $screeningStmt = $pdo->prepare(
     'SELECT aa.application_id, q.question_text, q.required_answer, aa.answer
@@ -276,6 +299,14 @@ foreach ($applications as $application) {
                 <p>Identity and contact details are private while this application is not accepted.</p>
             <?php endif; ?>
 
+            <?php $capacity = $capacityByStudy[(int)$application['study_id']]; ?>
+            <p>
+                Spaces remaining:
+                <?= $capacity['remaining'] === null
+                    ? 'No limit set'
+                    : $capacity['remaining'] . ' of ' . $capacity['capacity'] ?>
+            </p>
+
             <p>
                 Applied At:
                 <?= e($application['applied_at']) ?>
@@ -342,6 +373,7 @@ foreach ($applications as $application) {
                         value="<?= (int)$application['application_id'] ?>"
                     >
 
+                    <?php if ($capacity['remaining'] === null || $capacity['remaining'] > 0): ?>
                     <button
                         type="submit"
                         name="decision"
@@ -349,6 +381,9 @@ foreach ($applications as $application) {
                     >
                         Accept Application
                     </button>
+                    <?php else: ?>
+                        <p>This study is full. New applications cannot be accepted.</p>
+                    <?php endif; ?>
 
                     <button
                         type="submit"

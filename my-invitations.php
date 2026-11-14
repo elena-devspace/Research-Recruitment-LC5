@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/study-capacity.php';
 
 // Only volunteers can access this page.
 requireRole('volunteer');
@@ -75,62 +76,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
 
         try {
+            $lookup = $pdo->prepare(
+                'SELECT study_id FROM participation_requests
+                 WHERE request_id = ? AND volunteer_id = ?'
+            );
+            $lookup->execute([$requestId, $volunteerId]);
+            $studyId = $lookup->fetchColumn();
 
-            // Only update an invitation belonging to
-            // the logged-in volunteer.
-            // Only pending invitations can be answered.
-            // Acceptance also requires an open study.
-            $update = $pdo->prepare("
-                UPDATE participation_requests pr
-
-                INNER JOIN studies s
-                    ON pr.study_id = s.study_id
-
-                SET
-                    pr.status = ?,
-                    pr.responded_at = NOW()
-
-                WHERE pr.request_id = ?
-                  AND pr.volunteer_id = ?
-                  AND pr.status = 'pending'
-                  AND (
-                      ? = 'declined'
-                      OR s.status = 'open'
-                  )
-            ");
-
-            $update->execute([
-                $decision,
-                $requestId,
-                $volunteerId,
-                $decision
-            ]);
-
-            if ($update->rowCount() === 1) {
-
-                $_SESSION['invitation_success'] =
-                    $decision === 'accepted'
-                    ? 'Invitation accepted successfully!'
-                    : 'Invitation declined successfully!';
-
-                header('Location: my-invitations.php');
-                exit;
-
+            if ($studyId === false) {
+                $error = 'Invitation not found or access denied.';
             } else {
+                $pdo->beginTransaction();
+                $capacity = getStudyCapacity($pdo, (int)$studyId, true);
 
-                $error =
-                    'This invitation cannot be updated. ' .
-                    'It may have already been answered, ' .
-                    'or the study may no longer be open.';
+                $stateStmt = $pdo->prepare(
+                    'SELECT pr.status, s.status AS study_status
+                     FROM participation_requests pr
+                     INNER JOIN studies s ON s.study_id = pr.study_id
+                     WHERE pr.request_id = ? AND pr.volunteer_id = ? FOR UPDATE'
+                );
+                $stateStmt->execute([$requestId, $volunteerId]);
+                $state = $stateStmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$state || $state['status'] !== 'pending') {
+                    $error = 'This invitation has already been answered.';
+                } elseif ($decision === 'accepted' && $state['study_status'] !== 'open') {
+                    $error = 'This study is no longer open.';
+                } elseif (
+                    $decision === 'accepted' &&
+                    $capacity['remaining'] !== null &&
+                    $capacity['remaining'] < 1
+                ) {
+                    $error = 'This study is full. The invitation cannot be accepted.';
+                } else {
+                    $update = $pdo->prepare(
+                        "UPDATE participation_requests
+                         SET status = ?, responded_at = NOW()
+                         WHERE request_id = ? AND volunteer_id = ? AND status = 'pending'"
+                    );
+                    $update->execute([$decision, $requestId, $volunteerId]);
+
+                    if ($update->rowCount() === 1) {
+                        $pdo->commit();
+                        $_SESSION['invitation_success'] = $decision === 'accepted'
+                            ? 'Invitation accepted successfully!'
+                            : 'Invitation declined successfully!';
+                        header('Location: my-invitations.php');
+                        exit;
+                    }
+
+                    $error = 'Unable to update this invitation.';
+                }
+
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
             }
-
-        } catch (PDOException $e) {
-
-            error_log((string) $e);
-
-            $error =
-                'Unable to update your invitation. ' .
-                'Please try again.';
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Invitation response error: ' . $exception->getMessage());
+            $error = 'Unable to update your invitation. Please try again.';
         }
     }
 }
@@ -172,6 +179,13 @@ $stmt = $pdo->prepare("
 $stmt->execute([$volunteerId]);
 
 $invitations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$capacityByStudy = [];
+foreach ($invitations as $invitation) {
+    $studyId = (int)$invitation['study_id'];
+    if (!isset($capacityByStudy[$studyId])) {
+        $capacityByStudy[$studyId] = getStudyCapacity($pdo, $studyId);
+    }
+}
 
 $pendingCount = 0;
 
@@ -290,6 +304,14 @@ foreach ($invitations as $invitation) {
             ) ?>
         </p>
 
+        <?php $capacity = $capacityByStudy[(int)$invitation['study_id']]; ?>
+        <p>
+            Spaces remaining:
+            <?= $capacity['remaining'] === null
+                ? 'No limit set'
+                : $capacity['remaining'] . ' of ' . $capacity['capacity'] ?>
+        </p>
+
         <p>
             Invitation Status:
             <strong>
@@ -351,7 +373,8 @@ foreach ($invitations as $invitation) {
                 >
 
                 <?php if (
-                    $invitation['study_status'] === 'open'
+                    $invitation['study_status'] === 'open' &&
+                    ($capacity['remaining'] === null || $capacity['remaining'] > 0)
                 ): ?>
 
                     <button
@@ -362,6 +385,8 @@ foreach ($invitations as $invitation) {
                         Accept Invitation
                     </button>
 
+                <?php elseif ($invitation['study_status'] === 'open'): ?>
+                    <p>This study is full. You cannot accept this invitation.</p>
                 <?php endif; ?>
 
                 <button
