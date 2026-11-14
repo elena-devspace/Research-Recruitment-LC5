@@ -6,6 +6,16 @@ require_once __DIR__ . '/auth.php';
 $user = requireRole('volunteer');
 $pdo = getConnection();
 
+if (empty($_SESSION['preference_csrf'])) {
+    $_SESSION['preference_csrf'] = bin2hex(random_bytes(32));
+}
+$preferenceNotice = $_SESSION['preference_notice'] ?? null;
+unset($_SESSION['preference_notice']);
+$view = $_GET['view'] ?? 'all';
+if (!is_string($view) || !in_array($view, ['all', 'saved', 'hidden'], true)) {
+    $view = 'all';
+}
+
 // Temporary development-only restriction.
 $allowedTestUsers = [1, 6, 7];
 
@@ -22,12 +32,15 @@ function e($value): string {
     );
 }
 
-$stmt = $pdo->query(
+$stmt = $pdo->prepare(
     "SELECT s.study_id, s.title, s.topic,
             s.participation_format,
             s.reimbursement_amount,
-            s.application_deadline
+            s.application_deadline,
+            COALESCE(vsp.preference_status, '') AS preference_status
      FROM studies s
+     LEFT JOIN volunteer_study_preferences vsp
+         ON vsp.study_id = s.study_id AND vsp.volunteer_id = ?
      INNER JOIN users u
          ON u.user_id = s.researcher_id
      INNER JOIN academic_profiles ap
@@ -38,8 +51,14 @@ $stmt = $pdo->query(
        AND ap.verification_status = 'verified'
        AND s.application_deadline >= CURDATE()
        AND s.end_date >= CURDATE()
+       AND (
+           (? = 'saved' AND vsp.preference_status = 'saved') OR
+           (? = 'hidden' AND vsp.preference_status = 'hidden') OR
+           (? = 'all' AND (vsp.preference_status IS NULL OR vsp.preference_status <> 'hidden'))
+       )
      ORDER BY s.study_id DESC"
 );
+$stmt->execute([(int)$user['user_id'], $view, $view, $view]);
 
 $studies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -63,7 +82,19 @@ $studies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     No real recruitment or payment takes place.
 </p>
 
-<h3>Available Test Studies</h3>
+<form method="get" action="test-studies.php">
+    <label for="view">Show:</label>
+    <select id="view" name="view">
+        <option value="all" <?= $view === 'all' ? 'selected' : '' ?>>Available</option>
+        <option value="saved" <?= $view === 'saved' ? 'selected' : '' ?>>Saved</option>
+        <option value="hidden" <?= $view === 'hidden' ? 'selected' : '' ?>>Hidden</option>
+    </select>
+    <button type="submit">Apply filter</button>
+</form>
+<?php if (is_string($preferenceNotice)): ?>
+    <p role="status"><?= e($preferenceNotice) ?></p>
+<?php endif; ?>
+<h3><?= e(ucfirst($view === 'all' ? 'available' : $view)) ?> Test Studies</h3>
 
 <?php if (!$studies): ?>
 
@@ -95,6 +126,21 @@ $studies = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 Apply to Test Study
             </a>
         </p>
+
+        
+            <form method="post" action="preference-action.php">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
+                <input type="hidden" name="kind" value="study">
+                <input type="hidden" name="item_id" value="<?= (int)$study['study_id'] ?>">
+                <input type="hidden" name="return_page" value="test-studies.php">
+                <input type="hidden" name="return_query" value="<?= e(http_build_query($_GET)) ?>">
+                <button type="submit" name="action" value="<?= $study['preference_status'] === 'saved' ? 'clear' : 'save' ?>">
+                    <?= $study['preference_status'] === 'saved' ? 'Remove saved' : 'Save study' ?>
+                </button>
+                <button type="submit" name="action" value="<?= $study['preference_status'] === 'hidden' ? 'clear' : 'hide' ?>">
+                    <?= $study['preference_status'] === 'hidden' ? 'Restore study' : 'Hide study' ?>
+                </button>
+            </form>
 
         <hr>
 

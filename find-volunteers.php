@@ -7,6 +7,12 @@ require_once __DIR__ . '/postcode-distance.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
+
+if (empty($_SESSION['preference_csrf'])) {
+    $_SESSION['preference_csrf'] = bin2hex(random_bytes(32));
+}
+$preferenceNotice = $_SESSION['preference_notice'] ?? null;
+unset($_SESSION['preference_notice']);
 $researcherId = (int)$user['user_id'];
 
 $verified = $pdo->prepare(
@@ -62,6 +68,10 @@ $location = searchInput('location');
 $availability = searchInput('availability');
 $format = searchInput('format');
 $sort = searchInput('sort');
+$view = searchInput('view');
+if (!in_array($view, ['all', 'saved', 'hidden'], true)) {
+    $view = 'all';
+}
 
 if (!in_array($format, ['', 'online', 'in_person', 'either'], true)) {
     $format = '';
@@ -71,12 +81,22 @@ if (!in_array($sort, ['', 'best_match', 'id', 'distance'], true)) {
 }
 
 $sql = "SELECT u.user_id, vp.location, vp.postcode, vp.research_interests,
-               vp.availability, vp.preferred_format, vp.age_range
+               vp.availability, vp.preferred_format, vp.age_range,
+               COALESCE(avp.preference_status, '') AS preference_status
         FROM users u
         INNER JOIN volunteer_profiles vp ON vp.user_id = u.user_id
+        LEFT JOIN academic_volunteer_preferences avp
+            ON avp.volunteer_id = u.user_id AND avp.researcher_id = :researcher_id
         WHERE u.role = 'volunteer'
           AND vp.visible_to_researchers = 1";
-$params = [];
+$params = ['researcher_id' => $researcherId];
+if ($view === 'saved') {
+    $sql .= " AND avp.preference_status = 'saved'";
+} elseif ($view === 'hidden') {
+    $sql .= " AND avp.preference_status = 'hidden'";
+} else {
+    $sql .= " AND (avp.preference_status IS NULL OR avp.preference_status <> 'hidden')";
+}
 
 if ($keyword !== '') {
     $sql .= ' AND vp.research_interests LIKE :keyword';
@@ -236,12 +256,23 @@ if ($selectedStudy !== null) {
             </label>
         </p>
     <?php endif; ?>
+    <p>
+        <label for="view">Show:</label>
+        <select id="view" name="view">
+            <option value="all" <?= $view === 'all' ? 'selected' : '' ?>>Available</option>
+            <option value="saved" <?= $view === 'saved' ? 'selected' : '' ?>>Saved</option>
+            <option value="hidden" <?= $view === 'hidden' ? 'selected' : '' ?>>Hidden</option>
+        </select>
+    </p>
     <button type="submit">Search volunteers</button>
     <a href="find-volunteers.php">Clear filters</a>
 </form>
 
 <hr>
-<h3>Available Volunteers (<?= count($volunteers) ?>)</h3>
+<h3><?= e(ucfirst($view === 'all' ? 'available' : $view)) ?> Volunteers (<?= count($volunteers) ?>)</h3>
+<?php if (is_string($preferenceNotice)): ?>
+    <p role="status"><?= e($preferenceNotice) ?></p>
+<?php endif; ?>
 
 <?php if ($selectedStudy !== null): ?>
     <p>Preliminary match against: <strong><?= e($selectedStudy['title']) ?></strong></p>
@@ -288,6 +319,19 @@ if ($selectedStudy !== null) {
     <p>Availability: <?= e($volunteer['availability']) ?></p>
     <p>Preferred format: <?= e(str_replace('_', ' ', (string)$volunteer['preferred_format'])) ?></p>
     <p><a href="send-request.php?volunteer_id=<?= (int)$volunteer['user_id'] ?>">Invite to Research Study</a></p>
+    <form method="post" action="preference-action.php">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
+        <input type="hidden" name="kind" value="volunteer">
+        <input type="hidden" name="item_id" value="<?= (int)$volunteer['user_id'] ?>">
+        <input type="hidden" name="return_page" value="find-volunteers.php">
+        <input type="hidden" name="return_query" value="<?= e(http_build_query($_GET)) ?>">
+        <button type="submit" name="action" value="<?= $volunteer['preference_status'] === 'saved' ? 'clear' : 'save' ?>">
+            <?= $volunteer['preference_status'] === 'saved' ? 'Remove saved' : 'Save volunteer' ?>
+        </button>
+        <button type="submit" name="action" value="<?= $volunteer['preference_status'] === 'hidden' ? 'clear' : 'hide' ?>">
+            <?= $volunteer['preference_status'] === 'hidden' ? 'Restore volunteer' : 'Hide volunteer' ?>
+        </button>
+    </form>
     <hr>
 <?php endforeach; ?>
 
