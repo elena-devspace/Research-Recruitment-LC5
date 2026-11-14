@@ -48,12 +48,6 @@ if ($user['role'] !== $expectedRole) {
 $userId = (int)$user['user_id'];
 $itemId = (int)$rawId;
 
-if ($kind === 'study' && $page === 'test-studies.php'
-    && !in_array($userId, [1, 6, 7], true)) {
-    http_response_code(403);
-    exit('Access denied.');
-}
-
 if ($kind === 'volunteer') {
     $verification = $pdo->prepare(
         'SELECT verification_status FROM academic_profiles WHERE user_id = ?'
@@ -68,7 +62,7 @@ if ($kind === 'volunteer') {
 if ($action !== 'clear') {
     if ($kind === 'study') {
         $stmt = $pdo->prepare(
-            "SELECT s.is_test FROM studies s
+            "SELECT s.study_id FROM studies s
              JOIN users u ON u.user_id = s.researcher_id
              JOIN academic_profiles ap ON ap.user_id = u.user_id
              WHERE s.study_id = ? AND s.status = 'open'
@@ -77,10 +71,7 @@ if ($action !== 'clear') {
                AND s.end_date >= CURDATE()"
         );
         $stmt->execute([$itemId]);
-        $testFlag = $stmt->fetchColumn();
-        $allowedTest = in_array($userId, [1, 6, 7], true);
-        if ($testFlag === false || (int)$testFlag !== ($page === 'test-studies.php' ? 1 : 0)
-            || ((int)$testFlag === 1 && !$allowedTest)) {
+        if ($stmt->fetchColumn() === false) {
             http_response_code(403);
             exit('Study unavailable.');
         }

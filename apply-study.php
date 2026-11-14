@@ -7,13 +7,6 @@ $user = requireRole('volunteer');
 $pdo = getConnection();
 
 $volunteerId = (int) $user['user_id'];
-$testAccountIds = [1, 6, 7];
-
-$isTestAccount = in_array(
-    $volunteerId,
-    $testAccountIds,
-    true
-);
 function e($value): string
 {
     return htmlspecialchars(
@@ -63,17 +56,10 @@ $studyStmt = $pdo->prepare("
       AND ap.verification_status = 'verified'
       AND s.application_deadline >= CURDATE()
       AND s.end_date >= CURDATE()
-      AND (
-          s.is_test = 0
-          OR (s.is_test = 1 AND ? = 1)
-      )
     LIMIT 1
 ");
 
-$studyStmt->execute([
-    $studyId,
-    $isTestAccount ? 1 : 0
-]);
+$studyStmt->execute([$studyId]);
 
 $study = $studyStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -230,7 +216,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $studyId,
                     $volunteerId,
                     $message,
-                    $isTestAccount,
                     $rawAnswers
                 ): void {
 
@@ -278,14 +263,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           AND s.application_deadline >= CURDATE()
                           AND s.end_date >= CURDATE()
 
-                          AND (
-                              s.is_test = 0
-                              OR (
-                                  s.is_test = 1
-                                  AND ? = 1
-                              )
-                          )
-
                           AND NOT EXISTS (
                               SELECT 1
                               FROM participation_requests pr
@@ -300,7 +277,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ? $message
                             : null,
                         $studyId,
-                        $isTestAccount ? 1 : 0,
                         $volunteerId
                     ]);
 
@@ -428,15 +404,6 @@ $invitation = $invitationCheck->fetch(
 <h3>
     <?= e($study['title']) ?>
 </h3>
-
-<?php if ((int) $study['is_test'] === 1): ?>
-
-    <p>
-        <strong>FICTIONAL TEST STUDY</strong>
-        — No real participation or payment.
-    </p>
-
-<?php endif; ?>
 
 <p>
     Topic:

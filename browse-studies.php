@@ -89,14 +89,21 @@ if (empty($errors)) {
             s.reimbursement_amount,
             s.reimbursement_details,
             s.anonymous_participation_allowed,
+            s.is_test,
             u.first_name,
             u.last_name,
             ap.institution,
+            sa.status AS application_status,
+            pr.status AS invitation_status,
             COALESCE(vsp.preference_status, '') AS preference_status
 
         FROM studies s
         LEFT JOIN volunteer_study_preferences vsp
             ON vsp.study_id = s.study_id AND vsp.volunteer_id = :viewer_id
+        LEFT JOIN study_applications sa
+            ON sa.study_id = s.study_id AND sa.volunteer_id = :application_viewer_id
+        LEFT JOIN participation_requests pr
+            ON pr.study_id = s.study_id AND pr.volunteer_id = :invitation_viewer_id
 
         INNER JOIN users u
             ON u.user_id = s.researcher_id
@@ -105,14 +112,17 @@ if (empty($errors)) {
             ON ap.user_id = u.user_id
 
         WHERE s.status = 'open'
-          AND s.is_test = 0
           AND u.role = 'academic'
           AND ap.verification_status = 'verified'
           AND s.application_deadline >= CURDATE()
           AND s.end_date >= CURDATE()
     ";
 
-    $params = [':viewer_id' => (int)$user['user_id']];
+    $params = [
+        ':viewer_id' => (int)$user['user_id'],
+        ':application_viewer_id' => (int)$user['user_id'],
+        ':invitation_viewer_id' => (int)$user['user_id']
+    ];
 
     if ($view === 'saved') {
         $sql .= " AND vsp.preference_status = 'saved'";
@@ -312,9 +322,7 @@ if (empty($errors)) {
 
 <?php elseif (empty($studies)): ?>
 
-    <p>
-        No available research studies match your filters.
-    </p>
+    <p>No research studies match your selected filters.</p>
 
 <?php else: ?>
 
@@ -405,6 +413,20 @@ if (empty($errors)) {
             </details>
 
             
+            <?php if ($study['application_status'] !== null): ?>
+                <p>
+                    Your application: <strong><?= e(ucfirst($study['application_status'])) ?></strong>
+                </p>
+                <p><a href="my-applications.php">View My Applications</a></p>
+            <?php elseif ($study['invitation_status'] !== null): ?>
+                <p>
+                    Your invitation: <strong><?= e(ucfirst($study['invitation_status'])) ?></strong>
+                </p>
+                <p><a href="my-invitations.php">View My Invitations</a></p>
+            <?php else: ?>
+                <p><a href="apply-study.php?id=<?= (int)$study['study_id'] ?>">View and Apply</a></p>
+            <?php endif; ?>
+
             <form method="post" action="preference-action.php">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
                 <input type="hidden" name="kind" value="study">
