@@ -76,6 +76,7 @@ $fields = [
     'description',
     'participation_tasks',
     'eligibility_requirements',
+    'participant_capacity',
     'participation_format',
     'location',
     'start_date',
@@ -199,6 +200,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Invalid reimbursement amount.';
     }
 
+    if ($study['participant_capacity'] !== '' && (
+        !ctype_digit($study['participant_capacity']) ||
+        (int)$study['participant_capacity'] < 1 ||
+        (int)$study['participant_capacity'] > 10000
+    )) {
+        $errors[] = 'Enter a participant capacity between 1 and 10000.';
+    }
+
     if (empty($errors)) {
         try {
 
@@ -209,6 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 description = :description,
                 participation_tasks = :participation_tasks,
                 eligibility_requirements = :eligibility_requirements,
+                participant_capacity = :participant_capacity,
                 participation_format = :participation_format,
                 location = :location,
                 start_date = :start_date,
@@ -231,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (
                     in_array($field, [
                         'location',
+                        'participant_capacity',
                         'start_date',
                         'end_date',
                         'application_deadline',
@@ -349,6 +360,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       required><?= e($study[$field]) ?></textarea>
         </p>
     <?php endforeach; ?>
+
+    <p>
+        <label for="participant_capacity">Participant capacity (optional):</label>
+        <input type="number"
+               id="participant_capacity"
+               name="participant_capacity"
+               min="1"
+               max="10000"
+               step="1"
+               value="<?= e($study['participant_capacity'] ?? '') ?>">
+    </p>
 
     <p>
         <label for="participation_format">

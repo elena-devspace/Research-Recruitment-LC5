@@ -39,6 +39,7 @@ $fields = [
     'description',
     'participation_tasks',
     'eligibility_requirements',
+    'participant_capacity',
     'participation_format',
     'location',
     'start_date',
@@ -161,6 +162,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Enter a valid reimbursement amount.';
     }
 
+    if ($data['participant_capacity'] !== '' && (
+        !ctype_digit($data['participant_capacity']) ||
+        (int)$data['participant_capacity'] < 1 ||
+        (int)$data['participant_capacity'] > 10000
+    )) {
+        $errors[] = 'Enter a participant capacity between 1 and 10000.';
+    }
+
     $anonymous = (
         ($_POST['anonymous_participation_allowed'] ?? '')
         === '1'
@@ -177,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     description,
                     participation_tasks,
                     eligibility_requirements,
+                    participant_capacity,
                     participation_format,
                     location,
                     start_date,
@@ -194,6 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     :description,
                     :tasks,
                     :eligibility,
+                    :participant_capacity,
                     :format,
                     :location,
                     :start_date,
@@ -214,6 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'description' => $data['description'],
                 'tasks' => $data['participation_tasks'],
                 'eligibility' => $data['eligibility_requirements'],
+                'participant_capacity' => $data['participant_capacity'] === ''
+                    ? null : (int)$data['participant_capacity'],
                 'format' => $data['participation_format'],
                 'location' => $data['location'] ?: null,
                 'start_date' => $data['start_date'] ?: null,
@@ -325,6 +338,17 @@ foreach ($textareas as $field => $label):
             required><?= e($data[$field]) ?></textarea>
     </p>
 <?php endforeach; ?>
+
+<p>
+    <label for="participant_capacity">Participant capacity (optional):</label>
+    <input type="number"
+           id="participant_capacity"
+           name="participant_capacity"
+           min="1"
+           max="10000"
+           step="1"
+           value="<?= e($data['participant_capacity']) ?>">
+</p>
 
 <p>
     <label for="participation_format">

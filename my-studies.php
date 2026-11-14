@@ -155,6 +155,13 @@ $studies = $stmt->fetchAll();
                 <h4>Eligibility Requirements</h4>
                 <p><?= nl2br(e($study['eligibility_requirements'])) ?></p>
 
+                <h4>Participant Capacity</h4>
+                <p>
+                    <?= $study['participant_capacity'] === null
+                        ? 'Not specified'
+                        : (int)$study['participant_capacity'] ?>
+                </p>
+
                 <h4>Location</h4>
                 <p><?= e($study['location'] ?? 'Not specified') ?></p>
 
