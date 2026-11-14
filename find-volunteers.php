@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/volunteer-matching.php';
+require_once __DIR__ . '/postcode-distance.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -35,7 +36,8 @@ function searchInput(string $key): string
 
 $studyStmt = $pdo->prepare(
     "SELECT study_id, title, topic, participation_format, location,
-            required_availability, minimum_age, maximum_age
+            required_availability, minimum_age, maximum_age,
+            study_postcode, max_distance_miles
      FROM studies
      WHERE researcher_id = ? AND status = 'open'
      ORDER BY study_id DESC"
@@ -64,11 +66,11 @@ $sort = searchInput('sort');
 if (!in_array($format, ['', 'online', 'in_person', 'either'], true)) {
     $format = '';
 }
-if (!in_array($sort, ['', 'best_match', 'id'], true)) {
+if (!in_array($sort, ['', 'best_match', 'id', 'distance'], true)) {
     $sort = '';
 }
 
-$sql = "SELECT u.user_id, vp.location, vp.research_interests,
+$sql = "SELECT u.user_id, vp.location, vp.postcode, vp.research_interests,
                vp.availability, vp.preferred_format, vp.age_range
         FROM users u
         INNER JOIN volunteer_profiles vp ON vp.user_id = u.user_id
@@ -102,16 +104,60 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $volunteers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$distanceEnabled = $selectedStudy !== null
+    && in_array($selectedStudy['participation_format'], ['in_person', 'hybrid'], true)
+    && trim((string)($selectedStudy['study_postcode'] ?? '')) !== '';
+$radius = $selectedStudy === null ? null : $selectedStudy['max_distance_miles'];
+$withinRadius = searchInput('within_radius') === '1'
+    && $distanceEnabled && $radius !== null && (int)$radius > 0;
+
 if ($selectedStudy !== null) {
+    $coordinates = [];
+    $studyCoordinates = null;
+
+    if ($distanceEnabled) {
+        $postcodes = [(string)$selectedStudy['study_postcode']];
+        foreach ($volunteers as $volunteer) {
+            if (!empty($volunteer['postcode'])) {
+                $postcodes[] = (string)$volunteer['postcode'];
+            }
+        }
+        $coordinates = lookupPostcodeCoordinates($postcodes);
+        $studyKey = normaliseUkPostcode((string)$selectedStudy['study_postcode']);
+        $studyCoordinates = $coordinates[$studyKey] ?? null;
+    }
+
     foreach ($volunteers as &$volunteer) {
+        $volunteer['distance_miles'] = null;
+        $postcodeKey = normaliseUkPostcode((string)($volunteer['postcode'] ?? ''));
+        if ($studyCoordinates !== null && isset($coordinates[$postcodeKey])) {
+            $volunteer['distance_miles'] = straightLineMiles(
+                $studyCoordinates,
+                $coordinates[$postcodeKey]
+            );
+        }
         $volunteer['match'] = calculateVolunteerMatch(
             $selectedStudy,
-            $volunteer
+            $volunteer,
+            $volunteer['distance_miles']
         );
     }
     unset($volunteer);
 
-    if ($sort !== 'id') {
+    if ($withinRadius) {
+        $volunteers = array_values(array_filter(
+            $volunteers,
+            static fn(array $v): bool => $v['distance_miles'] !== null
+                && $v['distance_miles'] <= (int)$radius
+        ));
+    }
+
+    if ($sort === 'distance' && $distanceEnabled) {
+        usort($volunteers, static function (array $a, array $b): int {
+            return ($a['distance_miles'] ?? INF) <=> ($b['distance_miles'] ?? INF)
+                ?: (int)$a['user_id'] <=> (int)$b['user_id'];
+        });
+    } elseif ($sort !== 'id') {
         usort($volunteers, static function (array $a, array $b): int {
             $am = $a['match'];
             $bm = $b['match'];
@@ -178,8 +224,18 @@ if ($selectedStudy !== null) {
         <select id="sort" name="sort">
             <option value="best_match" <?= $sort !== 'id' ? 'selected' : '' ?>>Best match (when study selected)</option>
             <option value="id" <?= $sort === 'id' ? 'selected' : '' ?>>Volunteer ID</option>
+            <option value="distance" <?= $sort === 'distance' ? 'selected' : '' ?>>Nearest distance (study postcode required)</option>
         </select>
     </p>
+    <?php if ($distanceEnabled && $radius !== null): ?>
+        <p>
+            <label>
+                <input type="checkbox" name="within_radius" value="1"
+                    <?= $withinRadius ? 'checked' : '' ?>>
+                Show only volunteers within <?= (int)$radius ?> miles with a known distance
+            </label>
+        </p>
+    <?php endif; ?>
     <button type="submit">Search volunteers</button>
     <a href="find-volunteers.php">Clear filters</a>
 </form>
@@ -189,7 +245,10 @@ if ($selectedStudy !== null) {
 
 <?php if ($selectedStudy !== null): ?>
     <p>Preliminary match against: <strong><?= e($selectedStudy['title']) ?></strong></p>
-    <p>Scores compare research topic, participation format, location (when applicable), and study-specified availability and age limits. Uncertain age brackets are not scored. These are preliminary preferences, not verified eligibility or postcode distances.</p>
+    <p>Scores compare topic, format, and study-specific location, availability and age requirements. Unknown criteria are not scored. Scores do not confirm eligibility.</p>
+    <?php if ($distanceEnabled): ?>
+        <p>Distances are approximate straight-line miles between postcode centroids, not travel times. Postcode coordinates are retrieved securely server-side from Postcodes.io. Volunteer postcodes are not displayed.</p>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php if (!$volunteers): ?>
@@ -201,6 +260,13 @@ if ($selectedStudy !== null) {
 
     <?php if ($selectedStudy !== null): ?>
         <?php $match = $volunteer['match']; ?>
+        <?php if ($distanceEnabled): ?>
+            <p>Approximate distance:
+                <?= $volunteer['distance_miles'] === null
+                    ? 'Unavailable (postcode missing, not found or lookup unavailable)'
+                    : e(number_format($volunteer['distance_miles'], 1)) . ' miles (straight line)' ?>
+            </p>
+        <?php endif; ?>
         <?php if ($match['percent'] !== null): ?>
             <p><strong>Preliminary match: <?= $match['percent'] ?>% (<?= $match['matched'] ?>/<?= $match['total'] ?> criteria)</strong></p>
             <ul>

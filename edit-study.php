@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/study-eligibility.php';
+require_once __DIR__ . '/postcode-distance.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -84,6 +85,8 @@ $fields = [
     'maximum_age',
     'participation_format',
     'location',
+    'study_postcode',
+    'max_distance_miles',
     'start_date',
     'end_date',
     'application_deadline',
@@ -229,6 +232,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Maximum age cannot be lower than minimum age.';
     }
 
+
+    $postcode = normaliseUkPostcode($study['study_postcode']);
+    $study['study_postcode'] = $postcode;
+    if ($postcode !== '' && !validUkPostcodeFormat($postcode)) {
+        $errors[] = 'Enter a valid UK-format study postcode.';
+    }
+    $radius = $study['max_distance_miles'];
+    if ($radius !== '' && (!ctype_digit($radius)
+        || (int)$radius < 1 || (int)$radius > 100)) {
+        $errors[] = 'The search radius must be between 1 and 100 miles.';
+    }
+    if ($radius !== '' && $postcode === '') {
+        $errors[] = 'A study postcode is required when setting a search radius.';
+    }
+    if ($study['participation_format'] === 'online'
+        && ($postcode !== '' || $radius !== '')) {
+        $errors[] = 'Postcode distance matching is for in-person or hybrid studies.';
+    }
+
     [$eligibilityRows, $eligibilityErrors] = submittedEligibilityRows();
     $errors = array_merge($errors, $eligibilityErrors);
 
@@ -258,6 +280,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 maximum_age = :maximum_age,
                 participation_format = :participation_format,
                 location = :location,
+                study_postcode = :study_postcode,
+                max_distance_miles = :max_distance_miles,
                 start_date = :start_date,
                 end_date = :end_date,
                 application_deadline = :application_deadline,
@@ -278,6 +302,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (
                     in_array($field, [
                         'location',
+                        'study_postcode',
+                        'max_distance_miles',
                         'participant_capacity',
                         'required_availability',
                         'minimum_age',
@@ -490,6 +516,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         </select>
     </p>
+
+
+<fieldset>
+    <legend>Postcode distance matching (in-person or hybrid studies)</legend>
+    <p>
+        <label for="study_postcode">Study postcode (optional):</label>
+        <input type="text" id="study_postcode" name="study_postcode"
+               maxlength="10" placeholder="e.g. NE1 8ST"
+               value="<?= e($study['study_postcode']) ?>">
+    </p>
+    <p>
+        <label for="max_distance_miles">Maximum search radius in miles (optional):</label>
+        <input type="number" id="max_distance_miles" name="max_distance_miles"
+               min="1" max="100" step="1"
+               value="<?= e($study['max_distance_miles']) ?>">
+    </p>
+    <p>Distances are approximate straight-line miles, not journey distances.</p>
+</fieldset>
 
     <?php
     $dates = [

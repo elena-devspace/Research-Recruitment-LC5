@@ -209,6 +209,9 @@ foreach ($questionStmt->fetchAll(PDO::FETCH_ASSOC) as $question) {
 
                 <h4>Location</h4>
                 <p><?= e($study['location'] ?? 'Not specified') ?></p>
+                <p>Study postcode: <?= e($study['study_postcode'] ?? 'Not specified') ?></p>
+                <p>Distance search radius: <?= $study['max_distance_miles'] === null
+                    ? 'Not specified' : (int)$study['max_distance_miles'] . ' miles' ?></p>
 
                 <h4>Application Deadline</h4>
                 <p><?= e(

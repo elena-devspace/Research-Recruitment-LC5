@@ -115,7 +115,7 @@ function matchStudyAge(?int $minimum, ?int $maximum, string $ageRange): ?bool
     return null;
 }
 
-function calculateVolunteerMatch(array $study, array $volunteer): array
+function calculateVolunteerMatch(array $study, array $volunteer, ?float $distanceMiles = null): array
 {
     $checks = [];
     $unknown = [];
@@ -140,13 +140,25 @@ function calculateVolunteerMatch(array $study, array $volunteer): array
     }
 
     if ($studyFormat !== 'online') {
-        $studyLocation = trim((string)($study['location'] ?? ''));
-        $volunteerLocation = trim((string)($volunteer['location'] ?? ''));
-        if ($studyLocation !== '' && $volunteerLocation !== '') {
-            $checks[] = [
-                'label' => 'Location (text comparison)',
-                'matched' => matchLocation($studyLocation, $volunteerLocation)
-            ];
+        $radius = $study['max_distance_miles'] ?? null;
+        if ($radius !== null && (int)$radius > 0) {
+            if ($distanceMiles === null) {
+                $unknown[] = 'Postcode distance unavailable';
+            } else {
+                $checks[] = [
+                    'label' => 'Within ' . (int)$radius . ' miles (straight line)',
+                    'matched' => $distanceMiles <= (int)$radius
+                ];
+            }
+        } else {
+            $studyLocation = trim((string)($study['location'] ?? ''));
+            $volunteerLocation = trim((string)($volunteer['location'] ?? ''));
+            if ($studyLocation !== '' && $volunteerLocation !== '') {
+                $checks[] = [
+                    'label' => 'Location (text comparison)',
+                    'matched' => matchLocation($studyLocation, $volunteerLocation)
+                ];
+            }
         }
     }
 
