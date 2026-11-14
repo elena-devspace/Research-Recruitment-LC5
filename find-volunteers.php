@@ -34,7 +34,8 @@ function searchInput(string $key): string
 }
 
 $studyStmt = $pdo->prepare(
-    "SELECT study_id, title, topic, participation_format, location
+    "SELECT study_id, title, topic, participation_format, location,
+            required_availability, minimum_age, maximum_age
      FROM studies
      WHERE researcher_id = ? AND status = 'open'
      ORDER BY study_id DESC"
@@ -68,7 +69,7 @@ if (!in_array($sort, ['', 'best_match', 'id'], true)) {
 }
 
 $sql = "SELECT u.user_id, vp.location, vp.research_interests,
-               vp.availability, vp.preferred_format
+               vp.availability, vp.preferred_format, vp.age_range
         FROM users u
         INNER JOIN volunteer_profiles vp ON vp.user_id = u.user_id
         WHERE u.role = 'volunteer'
@@ -188,7 +189,7 @@ if ($selectedStudy !== null) {
 
 <?php if ($selectedStudy !== null): ?>
     <p>Preliminary match against: <strong><?= e($selectedStudy['title']) ?></strong></p>
-    <p>Scores compare research topic, participation format and, for in-person or hybrid studies, location text where available. They do not confirm eligibility or calculate postcode distance.</p>
+    <p>Scores compare research topic, participation format, location (when applicable), and study-specified availability and age limits. Uncertain age brackets are not scored. These are preliminary preferences, not verified eligibility or postcode distances.</p>
 <?php endif; ?>
 
 <?php if (!$volunteers): ?>
@@ -207,6 +208,9 @@ if ($selectedStudy !== null) {
                     <li><?= e($check['label']) ?>: <?= $check['matched'] ? 'Match' : 'Not matched' ?></li>
                 <?php endforeach; ?>
             </ul>
+            <?php if (!empty($match['unknown'])): ?>
+                <p>Not scored: <?= e(implode('; ', $match['unknown'])) ?></p>
+            <?php endif; ?>
         <?php else: ?>
             <p>Not enough profile information to calculate a match.</p>
         <?php endif; ?>

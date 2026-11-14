@@ -74,9 +74,51 @@ function matchLocation(string $studyLocation, string $volunteerLocation): bool
     );
 }
 
+
+function matchStudyAvailability(string $requirement, string $availability): ?bool
+{
+    $availability = strtolower($availability);
+    if (trim($availability) === '') {
+        return null;
+    }
+    $hasWeekdays = str_contains($availability, 'weekday');
+    $hasWeekends = str_contains($availability, 'weekend');
+    if (!$hasWeekdays && !$hasWeekends) {
+        return null;
+    }
+    return match ($requirement) {
+        'weekdays' => $hasWeekdays,
+        'weekends' => $hasWeekends,
+        'both' => $hasWeekdays && $hasWeekends,
+        default => null
+    };
+}
+
+function matchStudyAge(?int $minimum, ?int $maximum, string $ageRange): ?bool
+{
+    if (!preg_match('/^(\d{2})-(\d{2})$/D', $ageRange, $parts)
+        && !preg_match('/^(\d{2})\+$/D', $ageRange, $parts)) {
+        return null;
+    }
+    $lower = (int)$parts[1];
+    $upper = str_ends_with($ageRange, '+') ? null : (int)$parts[2];
+    if ($maximum !== null && $lower > $maximum) {
+        return false;
+    }
+    if ($upper !== null && $minimum !== null && $upper < $minimum) {
+        return false;
+    }
+    if (($minimum === null || $lower >= $minimum)
+        && ($maximum === null || ($upper !== null && $upper <= $maximum))) {
+        return true;
+    }
+    return null;
+}
+
 function calculateVolunteerMatch(array $study, array $volunteer): array
 {
     $checks = [];
+    $unknown = [];
     $interests = trim((string)($volunteer['research_interests'] ?? ''));
     $topic = trim((string)($study['topic'] ?? ''));
 
@@ -108,6 +150,28 @@ function calculateVolunteerMatch(array $study, array $volunteer): array
         }
     }
 
+    $dayRequirement = (string)($study['required_availability'] ?? '');
+    if ($dayRequirement !== '') {
+        $dayMatch = matchStudyAvailability($dayRequirement, (string)($volunteer['availability'] ?? ''));
+        if ($dayMatch === null) {
+            $unknown[] = 'Availability not specified or unrecognised';
+        } else {
+            $checks[] = ['label' => 'Required availability', 'matched' => $dayMatch];
+        }
+    }
+
+    $minimum = $study['minimum_age'] === null ? null : (int)$study['minimum_age'];
+    $maximum = $study['maximum_age'] === null ? null : (int)$study['maximum_age'];
+    if ($minimum !== null || $maximum !== null) {
+        $ageRange = (string)($volunteer['age_range'] ?? '');
+        $ageMatch = matchStudyAge($minimum, $maximum, $ageRange);
+        if ($ageMatch === null) {
+            $unknown[] = 'Age bracket missing or overlaps a study age boundary';
+        } else {
+            $checks[] = ['label' => 'Age range estimate', 'matched' => $ageMatch];
+        }
+    }
+
     $matched = count(array_filter(
         $checks,
         static fn(array $check): bool => $check['matched']
@@ -118,6 +182,7 @@ function calculateVolunteerMatch(array $study, array $volunteer): array
         'matched' => $matched,
         'total' => $total,
         'percent' => $total > 0 ? (int)round(100 * $matched / $total) : null,
-        'checks' => $checks
+        'checks' => $checks,
+        'unknown' => $unknown
     ];
 }

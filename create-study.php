@@ -41,6 +41,9 @@ $fields = [
     'participation_tasks',
     'eligibility_requirements',
     'participant_capacity',
+    'required_availability',
+    'minimum_age',
+    'maximum_age',
     'participation_format',
     'location',
     'start_date',
@@ -172,6 +175,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Enter a participant capacity between 1 and 10000.';
     }
 
+
+    if (!in_array($data['required_availability'], ['', 'weekdays', 'weekends', 'both'], true)) {
+        $errors[] = 'Select valid required availability.';
+    }
+    foreach (['minimum_age', 'maximum_age'] as $ageField) {
+        $ageValue = $data[$ageField];
+        if ($ageValue !== '' && (!ctype_digit($ageValue) || (int)$ageValue < 18 || (int)$ageValue > 120)) {
+            $errors[] = 'Study age limits must be between 18 and 120.';
+        }
+    }
+    if ($data['minimum_age'] !== '' && $data['maximum_age'] !== ''
+        && ctype_digit($data['minimum_age']) && ctype_digit($data['maximum_age'])
+        && (int)$data['minimum_age'] > (int)$data['maximum_age']) {
+        $errors[] = 'Maximum age cannot be lower than minimum age.';
+    }
+
     [$eligibilityRows, $eligibilityErrors] = submittedEligibilityRows();
     $errors = array_merge($errors, $eligibilityErrors);
 
@@ -194,6 +213,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     participation_tasks,
                     eligibility_requirements,
                     participant_capacity,
+                    required_availability,
+                    minimum_age,
+                    maximum_age,
                     participation_format,
                     location,
                     start_date,
@@ -212,6 +234,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     :tasks,
                     :eligibility,
                     :participant_capacity,
+                    :required_availability,
+                    :minimum_age,
+                    :maximum_age,
                     :format,
                     :location,
                     :start_date,
@@ -234,6 +259,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'eligibility' => $data['eligibility_requirements'],
                 'participant_capacity' => $data['participant_capacity'] === ''
                     ? null : (int)$data['participant_capacity'],
+                'required_availability' => $data['required_availability'] ?: null,
+                'minimum_age' => $data['minimum_age'] === '' ? null : (int)$data['minimum_age'],
+                'maximum_age' => $data['maximum_age'] === '' ? null : (int)$data['maximum_age'],
                 'format' => $data['participation_format'],
                 'location' => $data['location'] ?: null,
                 'start_date' => $data['start_date'] ?: null,
@@ -386,6 +414,28 @@ foreach ($textareas as $field => $label):
            step="1"
            value="<?= e($data['participant_capacity']) ?>">
 </p>
+
+
+<fieldset>
+    <legend>Study matching requirements (optional)</legend>
+    <p>
+        <label for="required_availability">Required availability:</label>
+        <select id="required_availability" name="required_availability">
+            <?php foreach (['' => 'Not specified', 'weekdays' => 'Weekdays', 'weekends' => 'Weekends', 'both' => 'Both weekdays and weekends'] as $value => $label): ?>
+                <option value="<?= e($value) ?>" <?= ($data['required_availability'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </p>
+    <p>
+        <label for="minimum_age">Minimum age:</label>
+        <input type="number" id="minimum_age" name="minimum_age" min="18" max="120" step="1" value="<?= e($data['minimum_age'] ?? '') ?>">
+    </p>
+    <p>
+        <label for="maximum_age">Maximum age:</label>
+        <input type="number" id="maximum_age" name="maximum_age" min="18" max="120" step="1" value="<?= e($data['maximum_age'] ?? '') ?>">
+    </p>
+    <p>Age matches are estimates based on volunteer-selected age brackets, not exact ages.</p>
+</fieldset>
 
 <p>
     <label for="participation_format">

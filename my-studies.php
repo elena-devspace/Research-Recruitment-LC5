@@ -174,6 +174,15 @@ foreach ($questionStmt->fetchAll(PDO::FETCH_ASSOC) as $question) {
                 <h4>Eligibility Requirements</h4>
                 <p><?= nl2br(e($study['eligibility_requirements'])) ?></p>
 
+                <h4>Matching Requirements</h4>
+                <p>Availability: <?= e(match ((string)($study['required_availability'] ?? '')) {
+                    'weekdays' => 'Weekdays',
+                    'weekends' => 'Weekends',
+                    'both' => 'Both weekdays and weekends',
+                    default => 'Not specified'
+                }) ?></p>
+                <p>Age range: <?= e($study['minimum_age'] ?? 'Not specified') ?> to <?= e($study['maximum_age'] ?? 'No upper limit') ?></p>
+
                 <h4>Eligibility Screening Questions</h4>
                 <?php $screeningQuestions = $questionsByStudy[(int)$study['study_id']] ?? []; ?>
                 <?php if (empty($screeningQuestions)): ?>

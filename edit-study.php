@@ -79,6 +79,9 @@ $fields = [
     'participation_tasks',
     'eligibility_requirements',
     'participant_capacity',
+    'required_availability',
+    'minimum_age',
+    'maximum_age',
     'participation_format',
     'location',
     'start_date',
@@ -210,6 +213,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Enter a participant capacity between 1 and 10000.';
     }
 
+
+    if (!in_array($study['required_availability'], ['', 'weekdays', 'weekends', 'both'], true)) {
+        $errors[] = 'Select valid required availability.';
+    }
+    foreach (['minimum_age', 'maximum_age'] as $ageField) {
+        $ageValue = $study[$ageField];
+        if ($ageValue !== '' && (!ctype_digit($ageValue) || (int)$ageValue < 18 || (int)$ageValue > 120)) {
+            $errors[] = 'Study age limits must be between 18 and 120.';
+        }
+    }
+    if ($study['minimum_age'] !== '' && $study['maximum_age'] !== ''
+        && ctype_digit($study['minimum_age']) && ctype_digit($study['maximum_age'])
+        && (int)$study['minimum_age'] > (int)$study['maximum_age']) {
+        $errors[] = 'Maximum age cannot be lower than minimum age.';
+    }
+
     [$eligibilityRows, $eligibilityErrors] = submittedEligibilityRows();
     $errors = array_merge($errors, $eligibilityErrors);
 
@@ -234,6 +253,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 participation_tasks = :participation_tasks,
                 eligibility_requirements = :eligibility_requirements,
                 participant_capacity = :participant_capacity,
+                required_availability = :required_availability,
+                minimum_age = :minimum_age,
+                maximum_age = :maximum_age,
                 participation_format = :participation_format,
                 location = :location,
                 start_date = :start_date,
@@ -257,6 +279,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     in_array($field, [
                         'location',
                         'participant_capacity',
+                        'required_availability',
+                        'minimum_age',
+                        'maximum_age',
                         'start_date',
                         'end_date',
                         'application_deadline',
@@ -415,6 +440,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                step="1"
                value="<?= e($study['participant_capacity'] ?? '') ?>">
     </p>
+
+
+<fieldset>
+    <legend>Study matching requirements (optional)</legend>
+    <p>
+        <label for="required_availability">Required availability:</label>
+        <select id="required_availability" name="required_availability">
+            <?php foreach (['' => 'Not specified', 'weekdays' => 'Weekdays', 'weekends' => 'Weekends', 'both' => 'Both weekdays and weekends'] as $value => $label): ?>
+                <option value="<?= e($value) ?>" <?= ($study['required_availability'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </p>
+    <p>
+        <label for="minimum_age">Minimum age:</label>
+        <input type="number" id="minimum_age" name="minimum_age" min="18" max="120" step="1" value="<?= e($study['minimum_age'] ?? '') ?>">
+    </p>
+    <p>
+        <label for="maximum_age">Maximum age:</label>
+        <input type="number" id="maximum_age" name="maximum_age" min="18" max="120" step="1" value="<?= e($study['maximum_age'] ?? '') ?>">
+    </p>
+    <p>Age matches are estimates based on volunteer-selected age brackets, not exact ages.</p>
+</fieldset>
 
     <p>
         <label for="participation_format">
