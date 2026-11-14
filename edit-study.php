@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/study-eligibility.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -68,6 +69,7 @@ $updated = ($_SESSION['study_updated'] ?? null) === $studyId;
 unset($_SESSION['study_updated']);
 
 $errors = [];
+$eligibilityRows = eligibilityFormRows(loadStudyEligibilityQuestions($pdo, (int)$studyId));
 
 $fields = [
     'title',
@@ -208,8 +210,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Enter a participant capacity between 1 and 10000.';
     }
 
+    [$eligibilityRows, $eligibilityErrors] = submittedEligibilityRows();
+    $errors = array_merge($errors, $eligibilityErrors);
+
     if (empty($errors)) {
         try {
+            $pdo->beginTransaction();
+            $lock = $pdo->prepare(
+                "SELECT study_id FROM studies
+                 WHERE study_id = ? AND researcher_id = ? AND status = 'draft'
+                 FOR UPDATE"
+            );
+            $lock->execute([$studyId, $user['user_id']]);
+            if ($lock->fetchColumn() === false) {
+                throw new RuntimeException('Draft is no longer editable.');
+            }
 
             $sql = "UPDATE studies SET
                 title = :title,
@@ -262,6 +277,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $params[':researcher_id'] = $user['user_id'];
 
             $stmt->execute($params);
+            replaceStudyEligibilityQuestions($pdo, (int)$studyId, $eligibilityRows);
+            $pdo->commit();
 
             $_SESSION['study_updated'] = $studyId;
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -270,6 +287,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
 
         } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log('Study update failed: ' . $exception->getMessage());
             $errors[] = 'Unable to update study.';
         }
@@ -360,6 +380,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       required><?= e($study[$field]) ?></textarea>
         </p>
     <?php endforeach; ?>
+
+    <fieldset>
+        <legend>Eligibility screening questions (optional)</legend>
+        <p>Add up to five Yes/No questions and select the answer required to qualify.</p>
+    
+        <?php foreach ($eligibilityRows as $index => $row): ?>
+            <p>
+                <label for="eligibility_question_<?= $index ?>">
+                    Question <?= $index + 1 ?>:
+                </label>
+                <input type="text"
+                       id="eligibility_question_<?= $index ?>"
+                       name="eligibility_questions[<?= $index ?>]"
+                       maxlength="255"
+                       value="<?= e($row['question_text']) ?>">
+                <label for="eligibility_answer_<?= $index ?>">Required answer:</label>
+                <select id="eligibility_answer_<?= $index ?>"
+                        name="eligibility_answers[<?= $index ?>]">
+                    <option value="yes" <?= $row['required_answer'] === 'yes' ? 'selected' : '' ?>>Yes</option>
+                    <option value="no" <?= $row['required_answer'] === 'no' ? 'selected' : '' ?>>No</option>
+                </select>
+            </p>
+        <?php endforeach; ?>
+    </fieldset>
 
     <p>
         <label for="participant_capacity">Participant capacity (optional):</label>

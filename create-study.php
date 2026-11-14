@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/study-eligibility.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -53,6 +54,7 @@ $data = array_fill_keys($fields, '');
 $data['reimbursement_amount'] = '0.00';
 
 $errors = [];
+$eligibilityRows = eligibilityFormRows([]);
 $createdId = $_SESSION['study_created'] ?? null;
 unset($_SESSION['study_created']);
 
@@ -170,6 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Enter a participant capacity between 1 and 10000.';
     }
 
+    [$eligibilityRows, $eligibilityErrors] = submittedEligibilityRows();
+    $errors = array_merge($errors, $eligibilityErrors);
+
     $anonymous = (
         ($_POST['anonymous_participation_allowed'] ?? '')
         === '1'
@@ -177,6 +182,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         try {
+            $pdo->beginTransaction();
+
             $stmt = $pdo->prepare(
                 "INSERT INTO studies (
                     researcher_id,
@@ -237,8 +244,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'anonymous' => $anonymous
             ]);
 
-            $_SESSION['study_created'] =
-                (int)$pdo->lastInsertId();
+            $newStudyId = (int)$pdo->lastInsertId();
+            replaceStudyEligibilityQuestions($pdo, $newStudyId, $eligibilityRows);
+            $pdo->commit();
+
+            $_SESSION['study_created'] = $newStudyId;
 
             $_SESSION['csrf_token'] =
                 bin2hex(random_bytes(32));
@@ -247,6 +257,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
 
         } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log(
                 'Study creation error: ' .
                 $exception->getMessage()
@@ -338,6 +351,30 @@ foreach ($textareas as $field => $label):
             required><?= e($data[$field]) ?></textarea>
     </p>
 <?php endforeach; ?>
+
+<fieldset>
+    <legend>Eligibility screening questions (optional)</legend>
+    <p>Add up to five Yes/No questions and select the answer required to qualify.</p>
+
+    <?php foreach ($eligibilityRows as $index => $row): ?>
+        <p>
+            <label for="eligibility_question_<?= $index ?>">
+                Question <?= $index + 1 ?>:
+            </label>
+            <input type="text"
+                   id="eligibility_question_<?= $index ?>"
+                   name="eligibility_questions[<?= $index ?>]"
+                   maxlength="255"
+                   value="<?= e($row['question_text']) ?>">
+            <label for="eligibility_answer_<?= $index ?>">Required answer:</label>
+            <select id="eligibility_answer_<?= $index ?>"
+                    name="eligibility_answers[<?= $index ?>]">
+                <option value="yes" <?= $row['required_answer'] === 'yes' ? 'selected' : '' ?>>Yes</option>
+                <option value="no" <?= $row['required_answer'] === 'no' ? 'selected' : '' ?>>No</option>
+            </select>
+        </p>
+    <?php endforeach; ?>
+</fieldset>
 
 <p>
     <label for="participant_capacity">Participant capacity (optional):</label>

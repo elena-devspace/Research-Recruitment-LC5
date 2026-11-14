@@ -46,6 +46,19 @@ $stmt->execute([
 ]);
 
 $studies = $stmt->fetchAll();
+
+$questionStmt = $pdo->prepare(
+    'SELECT q.study_id, q.question_text, q.required_answer
+     FROM study_eligibility_questions q
+     INNER JOIN studies s ON s.study_id = q.study_id
+     WHERE s.researcher_id = ?
+     ORDER BY q.study_id, q.position'
+);
+$questionStmt->execute([$user['user_id']]);
+$questionsByStudy = [];
+foreach ($questionStmt->fetchAll(PDO::FETCH_ASSOC) as $question) {
+    $questionsByStudy[(int)$question['study_id']][] = $question;
+}
 ?>
 
 <!DOCTYPE html>
@@ -154,6 +167,21 @@ $studies = $stmt->fetchAll();
 
                 <h4>Eligibility Requirements</h4>
                 <p><?= nl2br(e($study['eligibility_requirements'])) ?></p>
+
+                <h4>Eligibility Screening Questions</h4>
+                <?php $screeningQuestions = $questionsByStudy[(int)$study['study_id']] ?? []; ?>
+                <?php if (empty($screeningQuestions)): ?>
+                    <p>None specified.</p>
+                <?php else: ?>
+                    <ol>
+                        <?php foreach ($screeningQuestions as $question): ?>
+                            <li>
+                                <?= e($question['question_text']) ?>
+                                — Required: <?= e(ucfirst($question['required_answer'])) ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+                <?php endif; ?>
 
                 <h4>Participant Capacity</h4>
                 <p>
