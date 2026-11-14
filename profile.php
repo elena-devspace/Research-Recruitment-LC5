@@ -34,11 +34,10 @@ if (empty($_SESSION['csrf_token'])) {
 $errors = [];
 $saved = !empty($_SESSION['profile_saved']);
 unset($_SESSION['profile_saved']);
-
-// Retrieve the current user's profile
 if ($role === 'volunteer') {
     $stmt = $pdo->prepare(
-        'SELECT location, postcode, research_interests,
+        'SELECT location, postcode, phone_number,
+                preferred_contact_method, research_interests,
                 availability, age_range, preferred_format,
                 visible_to_researchers
          FROM volunteer_profiles
@@ -77,10 +76,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $location = posted('location');
         $postcode = strtoupper(posted('postcode'));
         $postcode = preg_replace('/\s+/', ' ', $postcode);
+        $phoneNumber = posted('phone_number');
+        $contactPreference = posted('preferred_contact_method');
         $ageRange = posted('age_range');
         $format = posted('preferred_format');
-
-        // Figma availability options: one or both must be selected.
         $postedDays = $_POST['availability_days'] ?? [];
         $selectedDays = [];
         $allowedDays = ['weekdays', 'weekends'];
@@ -102,12 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($selectedDays)) {
             $errors[] = 'Select at least one availability option.';
         }
-
-        // Keep the existing column compatible with researcher filters.
         $availability = implode(', ', array_map('ucfirst', $selectedDays));
-
-        // Preserve extra legacy detail (e.g. "Weekday afternoons")
-        // when the volunteer has not changed their day selections.
+        // Preserve earlier free-text availability when the selected days have not changed.
         $previousAvailability = (string) ($profile['availability'] ?? '');
         $previousDays = [];
         if (stripos($previousAvailability, 'weekday') !== false) {
@@ -133,6 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $profile = [
             'location' => $location,
             'postcode' => $postcode,
+            'phone_number' => $phoneNumber,
+            'preferred_contact_method' => $contactPreference,
             'research_interests' => $interests,
             'availability' => $availability,
             'age_range' => $ageRange,
@@ -147,14 +144,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (mb_strlen($availability) > 255) {
             $errors[] = 'Availability is too long.';
         }
-
-        // Keep the new fields optional while collecting consistent values.
         $ageOptions = ['', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
         if (!in_array($ageRange, $ageOptions, true)) {
             $errors[] = 'Select a valid age range.';
         }
-
-        // Validate UK-format postcodes for demo data (not postcode existence).
         if ($postcode !== '' && !preg_match(
             '/^(GIR ?0AA|[A-Z]{1,2}[0-9][0-9A-Z]? ?[0-9][A-Z]{2})$/D',
             $postcode
@@ -168,6 +161,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             true
         )) {
             $errors[] = 'Invalid participation format.';
+        }
+
+        if ($phoneNumber !== '' && (
+            mb_strlen($phoneNumber) > 25 ||
+            !preg_match('/^\+?[0-9 ()-]{7,25}$/D', $phoneNumber) ||
+            strlen(preg_replace('/\D/', '', $phoneNumber)) < 7
+        )) {
+            $errors[] = 'Enter a valid phone number.';
+        }
+
+        if (!in_array($contactPreference, ['email', 'phone'], true)) {
+            $errors[] = 'Select a preferred contact method.';
+        } elseif ($contactPreference === 'phone' && $phoneNumber === '') {
+            $errors[] = 'Enter a phone number to choose phone contact.';
         }
 
     } else {
@@ -197,13 +204,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $pdo->prepare(
                     'INSERT INTO volunteer_profiles
-                     (user_id, location, postcode, research_interests,
+                     (user_id, location, postcode, phone_number,
+                      preferred_contact_method, research_interests,
                       availability, age_range, preferred_format,
                       visible_to_researchers)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                        location = VALUES(location),
                        postcode = VALUES(postcode),
+                       phone_number = VALUES(phone_number),
+                       preferred_contact_method = VALUES(preferred_contact_method),
                        research_interests = VALUES(research_interests),
                        availability = VALUES(availability),
                        age_range = VALUES(age_range),
@@ -216,6 +226,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $userId,
                     $location,
                     $postcode !== '' ? $postcode : null,
+                    $phoneNumber !== '' ? $phoneNumber : null,
+                    $contactPreference,
                     $interests,
                     $availability,
                     $ageRange !== '' ? $ageRange : null,
@@ -332,6 +344,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Your postcode is saved for future location matching;
             it is not displayed on the public volunteer search page.
         </p>
+
+        <fieldset>
+            <legend>Contact Preferences</legend>
+
+            <p>
+                <label for="contact_email">Account email:</label>
+                <input type="email" id="contact_email"
+                       value="<?= e($user['email']) ?>" readonly>
+            </p>
+
+            <p>
+                <label for="phone_number">Phone number (optional):</label>
+                <input type="tel" id="phone_number" name="phone_number"
+                       maxlength="25" autocomplete="tel"
+                       value="<?= e($profile['phone_number'] ?? '') ?>">
+            </p>
+
+            <p>Preferred contact method:</p>
+            <?php $selectedContact = $profile['preferred_contact_method'] ?? 'email'; ?>
+            <label>
+                <input type="radio" name="preferred_contact_method"
+                       value="email" required
+                       <?= $selectedContact === 'email' ? 'checked' : '' ?>>
+                Email
+            </label>
+            <label>
+                <input type="radio" name="preferred_contact_method"
+                       value="phone" required
+                       <?= $selectedContact === 'phone' ? 'checked' : '' ?>>
+                Phone
+            </label>
+            <p>Your phone number is not shown in volunteer search results.</p>
+        </fieldset>
 
         <p>
             <label for="research_interests">
