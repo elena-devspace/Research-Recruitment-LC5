@@ -273,281 +273,286 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>My Profile - Research Recruitment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/profile.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-
-<h2>My Profile</h2>
-
-<p>
-    Welcome, <?= e($user['first_name']) ?>!
-</p>
-
-<p>
-    Account type: <?= e($role) ?>
-</p>
-
-<?php if ($saved): ?>
-    <p role="status">Profile saved successfully!</p>
-<?php endif; ?>
-
-<?php if (!empty($errors)): ?>
-    <div role="alert">
-        <ul>
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="<?= $role === 'volunteer' ? 'volunteer-dashboard.php' : 'academic-dashboard.php' ?>">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <?php if ($role === 'volunteer'): ?>
+                <a href="volunteer-dashboard.php">Dashboard</a>
+                <a href="browse-studies.php">Studies</a>
+                <a href="my-applications.php">Applications</a>
+                <a href="my-invitations.php">Invitations</a>
+            <?php else: ?>
+                <a href="academic-dashboard.php">Dashboard</a>
+                <a href="my-studies.php">My studies</a>
+                <a href="review-applications.php">Applications</a>
+                <a href="find-volunteers.php">Find volunteers</a>
+                <a href="my-sent-requests.php">Invitations</a>
+            <?php endif; ?>
+            <a href="profile.php" aria-current="page">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
+            </form>
+        </nav>
     </div>
-<?php endif; ?>
+</header>
 
-<form method="post" action="profile.php">
+<main class="page-shell profile-page">
+    <section class="profile-hero" aria-labelledby="profile-page-title">
+        <div>
+            <span class="eyebrow">Your account</span>
+            <h1 id="profile-page-title">Manage your profile</h1>
+            <p>Welcome back, <?= e($user['first_name']) ?>! Keep your information and research preferences up to date.</p>
+        </div>
+        <div class="profile-hero__aside">
+            <span class="profile-hero__role"><?= $role === 'volunteer' ? 'Volunteer account' : 'Academic researcher account' ?></span>
+            <a class="btn profile-btn--light" href="<?= $role === 'volunteer' ? 'volunteer-dashboard.php' : 'academic-dashboard.php' ?>">Back to dashboard</a>
+        </div>
+    </section>
 
-    <input type="hidden"
-           name="csrf_token"
-           value="<?= e($_SESSION['csrf_token']) ?>">
-
-    <?php if ($role === 'volunteer'): ?>
-
-        <h3>Volunteer Profile</h3>
-
-        <p>
-            <label for="location">Location:</label>
-            <input type="text"
-                   id="location"
-                   name="location"
-                   maxlength="150"
-                   value="<?= e($profile['location'] ?? '') ?>">
-        </p>
-
-        <p>
-            <label for="postcode">Postcode (optional):</label>
-            <input type="text"
-                   id="postcode"
-                   name="postcode"
-                   maxlength="10"
-                   autocomplete="postal-code"
-                   placeholder="e.g. NE1 8ST"
-                   value="<?= e($profile['postcode'] ?? '') ?>">
-        </p>
-
-        <p>
-            Your postcode is saved for future location matching;
-            it is not displayed on the public volunteer search page.
-        </p>
-
-        <fieldset>
-            <legend>Contact Preferences</legend>
-
-            <p>
-                <label for="contact_email">Account email:</label>
-                <input type="email" id="contact_email"
-                       value="<?= e($user['email']) ?>" readonly>
-            </p>
-
-            <p>
-                <label for="phone_number">Phone number (optional):</label>
-                <input type="tel" id="phone_number" name="phone_number"
-                       maxlength="25" autocomplete="tel"
-                       value="<?= e($profile['phone_number'] ?? '') ?>">
-            </p>
-
-            <p>Preferred contact method:</p>
-            <?php $selectedContact = $profile['preferred_contact_method'] ?? 'email'; ?>
-            <label>
-                <input type="radio" name="preferred_contact_method"
-                       value="email" required
-                       <?= $selectedContact === 'email' ? 'checked' : '' ?>>
-                Email
-            </label>
-            <label>
-                <input type="radio" name="preferred_contact_method"
-                       value="phone" required
-                       <?= $selectedContact === 'phone' ? 'checked' : '' ?>>
-                Phone
-            </label>
-            <p>Your phone number is not shown in volunteer search results.</p>
-        </fieldset>
-
-        <p>
-            <label for="research_interests">
-                Research Interests:
-            </label>
-            <textarea id="research_interests"
-                      name="research_interests"
-                      maxlength="2000"><?= e(
-                $profile['research_interests'] ?? ''
-            ) ?></textarea>
-        </p>
-
-        <fieldset>
-            <legend>Availability (select at least one):</legend>
-            <?php
-            $selectedAvailability = strtolower(
-                (string) ($profile['availability'] ?? '')
-            );
-            ?>
-            <label>
-                <input type="checkbox"
-                       name="availability_days[]"
-                       value="weekdays"
-                       <?= str_contains($selectedAvailability, 'weekday')
-                           ? 'checked' : '' ?>>
-                Weekdays
-            </label>
-            <label>
-                <input type="checkbox"
-                       name="availability_days[]"
-                       value="weekends"
-                       <?= str_contains($selectedAvailability, 'weekend')
-                           ? 'checked' : '' ?>>
-                Weekends
-            </label>
-        </fieldset>
-
-        <p>
-            <label for="age_range">Age range (optional):</label>
-            <select id="age_range" name="age_range">
-                <?php
-                $ageOptions = [
-                    '' => 'Prefer not to say',
-                    '18-24' => '18–24',
-                    '25-34' => '25–34',
-                    '35-44' => '35–44',
-                    '45-54' => '45–54',
-                    '55-64' => '55–64',
-                    '65+' => '65+'
-                ];
-                $selectedAgeRange = $profile['age_range'] ?? '';
-                foreach ($ageOptions as $value => $label):
-                ?>
-                    <option value="<?= e($value) ?>"
-                        <?= $selectedAgeRange === $value ? 'selected' : '' ?>>
-                        <?= e($label) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </p>
-
-        <p>
-            <label for="preferred_format">
-                Preferred Participation Format:
-            </label>
-
-            <select id="preferred_format"
-                    name="preferred_format">
-
-                <?php
-                $selectedFormat =
-                    $profile['preferred_format'] ?? '';
-
-                $formats = [
-                    '' => 'Not specified',
-                    'online' => 'Online',
-                    'in_person' => 'In Person',
-                    'either' => 'Either'
-                ];
-
-                foreach ($formats as $value => $label):
-                ?>
-                    <option value="<?= e($value) ?>"
-                        <?= $selectedFormat === $value
-                            ? 'selected' : '' ?>>
-                        <?= e($label) ?>
-                    </option>
-                <?php endforeach; ?>
-
-            </select>
-        </p>
-
-        <p>
-            <label>
-                <input type="checkbox"
-                       name="visible_to_researchers"
-                       value="1"
-                       <?= !empty(
-                           $profile['visible_to_researchers']
-                       ) ? 'checked' : '' ?>>
-
-                Allow verified researchers to discover
-                my volunteer profile
-            </label>
-        </p>
-
-        <p>
-            Your profile will remain private from
-            researcher searches unless you choose
-            to make it visible.
-        </p>
-
-    <?php else: ?>
-
-        <h3>Academic Researcher Profile</h3>
-
-        <p>
-            <label for="institution">Institution:</label>
-            <input type="text"
-                   id="institution"
-                   name="institution"
-                   maxlength="200"
-                   value="<?= e(
-                       $profile['institution'] ?? ''
-                   ) ?>">
-        </p>
-
-        <p>
-            <label for="department">Department:</label>
-            <input type="text"
-                   id="department"
-                   name="department"
-                   maxlength="200"
-                   value="<?= e(
-                       $profile['department'] ?? ''
-                   ) ?>">
-        </p>
-
-        <p>
-            <label for="research_interests">
-                Research Interests:
-            </label>
-
-            <textarea id="research_interests"
-                      name="research_interests"
-                      maxlength="2000"><?= e(
-                $profile['research_interests'] ?? ''
-            ) ?></textarea>
-        </p>
-
+    <?php if ($saved): ?>
+        <div class="feedback feedback--success profile-feedback" role="status">Profile saved successfully!</div>
     <?php endif; ?>
 
-    <button type="submit">Save Profile</button>
+    <?php if (!empty($errors)): ?>
+        <div class="feedback feedback--error profile-feedback" role="alert">
+            <h2>Unable to save your profile</h2>
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
-</form>
+    <div class="profile-section-heading">
+        <div>
+            <span class="eyebrow">Profile settings</span>
+            <h2><?= $role === 'volunteer' ? 'Your volunteer profile' : 'Your researcher profile' ?></h2>
+        </div>
+        <p>Make changes below and save when you're done.</p>
+    </div>
 
-<hr>
+    <form method="post" action="profile.php" class="profile-form">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
 
-<?php if ($role === 'volunteer'): ?>
-    <p>
-        <a href="volunteer-dashboard.php">
-            Back to Volunteer Dashboard
-        </a>
-    </p>
-<?php else: ?>
-    <p>
-        <a href="academic-dashboard.php">
-            Back to Academic Dashboard
-        </a>
-    </p>
-<?php endif; ?>
+        <?php if ($role === 'volunteer'): ?>
+            <div class="profile-grid">
+                <section class="profile-card" aria-labelledby="about-heading">
+                    <span class="profile-card__tag">01</span>
+                    <h3 id="about-heading">About you</h3>
+                    <p class="profile-card__intro">Help researchers understand which opportunities may be relevant.</p>
 
+                    <div class="profile-fields">
+                        <div class="profile-field">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" name="location" maxlength="150"
+                                   autocomplete="address-level2" placeholder="e.g. Newcastle upon Tyne"
+                                   value="<?= e($profile['location'] ?? '') ?>">
+                        </div>
+                        <div class="profile-field">
+                            <label for="postcode">Postcode <span class="profile-optional">(optional)</span></label>
+                            <input type="text" id="postcode" name="postcode" maxlength="10"
+                                   autocomplete="postal-code" placeholder="e.g. NE1 8ST"
+                                   value="<?= e($profile['postcode'] ?? '') ?>" aria-describedby="postcode-hint">
+                            <p class="profile-hint" id="postcode-hint">Used for location matching. Your postcode is not displayed in volunteer search results.</p>
+                        </div>
+                        <div class="profile-field">
+                            <label for="age_range">Age range <span class="profile-optional">(optional)</span></label>
+                            <select id="age_range" name="age_range">
+                                <?php
+                                $ageOptions = [
+                                    '' => 'Prefer not to say',
+                                    '18-24' => '18–24',
+                                    '25-34' => '25–34',
+                                    '35-44' => '35–44',
+                                    '45-54' => '45–54',
+                                    '55-64' => '55–64',
+                                    '65+' => '65+'
+                                ];
+                                $selectedAgeRange = $profile['age_range'] ?? '';
+                                foreach ($ageOptions as $value => $label):
+                                ?>
+                                    <option value="<?= e($value) ?>" <?= $selectedAgeRange === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="profile-card" aria-labelledby="contact-heading">
+                    <span class="profile-card__tag">02</span>
+                    <h3 id="contact-heading">Contact preferences</h3>
+                    <p class="profile-card__intro">Choose how you would prefer to be contacted after an invitation is accepted.</p>
+
+                    <div class="profile-fields">
+                        <div class="profile-field">
+                            <label for="contact_email">Account email</label>
+                            <input type="email" id="contact_email" value="<?= e($user['email']) ?>" readonly>
+                            <p class="profile-hint">This email is linked to your account and cannot be changed here.</p>
+                        </div>
+                        <div class="profile-field">
+                            <label for="phone_number">Phone number <span class="profile-optional">(optional)</span></label>
+                            <input type="tel" id="phone_number" name="phone_number" maxlength="25"
+                                   autocomplete="tel" placeholder="e.g. 07123 456789"
+                                   value="<?= e($profile['phone_number'] ?? '') ?>" aria-describedby="phone-hint">
+                            <p class="profile-hint" id="phone-hint">Your phone number is not shown in volunteer search results.</p>
+                        </div>
+                        <fieldset class="profile-choice-group">
+                            <legend>Preferred contact method</legend>
+                            <?php $selectedContact = $profile['preferred_contact_method'] ?? 'email'; ?>
+                            <div class="profile-choice-row">
+                                <label class="profile-choice">
+                                    <input type="radio" name="preferred_contact_method" value="email" required
+                                        <?= $selectedContact === 'email' ? 'checked' : '' ?>>
+                                    Email
+                                </label>
+                                <label class="profile-choice">
+                                    <input type="radio" name="preferred_contact_method" value="phone" required
+                                        <?= $selectedContact === 'phone' ? 'checked' : '' ?>>
+                                    Phone
+                                </label>
+                            </div>
+                            <p class="profile-hint">A phone number is required if you select Phone.</p>
+                        </fieldset>
+                    </div>
+                </section>
+
+                <section class="profile-card" aria-labelledby="research-heading">
+                    <span class="profile-card__tag">03</span>
+                    <h3 id="research-heading">Research preferences</h3>
+                    <p class="profile-card__intro">Tell researchers what interests you and when you're available.</p>
+
+                    <div class="profile-fields">
+                        <div class="profile-field">
+                            <label for="research_interests">Research interests</label>
+                            <textarea id="research_interests" name="research_interests" maxlength="2000"
+                                      rows="5" placeholder="e.g. Psychology, Technology, Education"><?= e($profile['research_interests'] ?? '') ?></textarea>
+                        </div>
+                        <fieldset class="profile-choice-group">
+                            <legend>Availability <span class="profile-required">(select at least one)</span></legend>
+                            <?php $selectedAvailability = strtolower((string) ($profile['availability'] ?? '')); ?>
+                            <div class="profile-choice-row">
+                                <label class="profile-choice">
+                                    <input type="checkbox" name="availability_days[]" value="weekdays"
+                                        <?= str_contains($selectedAvailability, 'weekday') ? 'checked' : '' ?>>
+                                    Weekdays
+                                </label>
+                                <label class="profile-choice">
+                                    <input type="checkbox" name="availability_days[]" value="weekends"
+                                        <?= str_contains($selectedAvailability, 'weekend') ? 'checked' : '' ?>>
+                                    Weekends
+                                </label>
+                            </div>
+                        </fieldset>
+                        <div class="profile-field">
+                            <label for="preferred_format">Preferred participation format</label>
+                            <select id="preferred_format" name="preferred_format">
+                                <?php
+                                $selectedFormat = $profile['preferred_format'] ?? '';
+                                $formats = [
+                                    '' => 'Not specified',
+                                    'online' => 'Online',
+                                    'in_person' => 'In Person',
+                                    'either' => 'Either'
+                                ];
+                                foreach ($formats as $value => $label):
+                                ?>
+                                    <option value="<?= e($value) ?>" <?= $selectedFormat === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="profile-card" aria-labelledby="visibility-heading">
+                    <span class="profile-card__tag">04</span>
+                    <h3 id="visibility-heading">Privacy and visibility</h3>
+                    <p class="profile-card__intro">Control whether verified academic researchers can find your profile.</p>
+
+                    <div class="profile-privacy-box">
+                        <label class="profile-privacy-option">
+                            <input type="checkbox" name="visible_to_researchers" value="1"
+                                <?= !empty($profile['visible_to_researchers']) ? 'checked' : '' ?>>
+                            <span>
+                                <strong>Allow researchers to discover my profile</strong>
+                                <small>Make my volunteer profile visible in searches by verified researchers.</small>
+                            </span>
+                        </label>
+                    </div>
+                    <p class="profile-privacy-note">Your profile stays private from researcher searches unless you choose to make it visible. Personal contact details are not shown in search results.</p>
+                </section>
+            </div>
+        <?php else: ?>
+            <div class="profile-grid profile-grid--academic">
+                <section class="profile-card" aria-labelledby="academic-details-heading">
+                    <span class="profile-card__tag">01</span>
+                    <h3 id="academic-details-heading">Academic details</h3>
+                    <p class="profile-card__intro">Keep your institution and department information up to date.</p>
+                    <div class="profile-fields">
+                        <div class="profile-field">
+                            <label for="institution">Institution</label>
+                            <input type="text" id="institution" name="institution" maxlength="200"
+                                   placeholder="e.g. Northumbria University"
+                                   value="<?= e($profile['institution'] ?? '') ?>">
+                        </div>
+                        <div class="profile-field">
+                            <label for="department">Department</label>
+                            <input type="text" id="department" name="department" maxlength="200"
+                                   placeholder="e.g. Computer and Information Sciences"
+                                   value="<?= e($profile['department'] ?? '') ?>">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="profile-card" aria-labelledby="academic-interests-heading">
+                    <span class="profile-card__tag">02</span>
+                    <h3 id="academic-interests-heading">Research interests</h3>
+                    <p class="profile-card__intro">Describe the areas of research you work in.</p>
+                    <div class="profile-fields">
+                        <div class="profile-field">
+                            <label for="research_interests">Your research interests</label>
+                            <textarea id="research_interests" name="research_interests" maxlength="2000"
+                                      rows="7" placeholder="e.g. Digital learning, Student wellbeing"><?= e($profile['research_interests'] ?? '') ?></textarea>
+                            <p class="profile-hint">Up to 2,000 characters.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        <?php endif; ?>
+
+        <div class="profile-save-panel">
+            <div>
+                <h2>Ready to save your changes?</h2>
+                <p>Your updated information will be saved to your profile.</p>
+            </div>
+            <button type="submit" class="btn btn--primary profile-save-button">Save profile</button>
+        </div>
+    </form>
+</main>
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
