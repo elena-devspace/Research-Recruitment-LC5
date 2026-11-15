@@ -205,255 +205,223 @@ if (empty($errors)) {
         $errors[] = 'Unable to load studies.';
     }
 }
-?>
 
+if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>Browse Research Studies</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Research Studies | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/browse-studies.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-<h2>Browse Research Studies</h2>
-
-<p>Welcome, <?= e($user['first_name']) ?>!</p>
-
-<h3>Find a Research Study</h3>
-
-<form method="get" action="browse-studies.php">
-
-    <p>
-        <label for="keyword">
-            Search by keyword:
-        </label>
-
-        <input type="search"
-               id="keyword"
-               name="keyword"
-               maxlength="100"
-               value="<?= e($keyword) ?>">
-    </p>
-
-    <p>
-        <label for="location">Location:</label>
-
-        <input type="text"
-               id="location"
-               name="location"
-               maxlength="150"
-               value="<?= e($location) ?>">
-    </p>
-
-    <p>
-        <label for="format">
-            Participation Format:
-        </label>
-
-        <select id="format" name="format">
-
-            <?php foreach ($formatOptions as $value => $label): ?>
-
-                <option
-                    value="<?= e($value) ?>"
-                    <?= $format === $value ? 'selected' : '' ?>
-                >
-                    <?= e($label) ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </p>
-
-    <p>
-        <label for="sort">Sort by:</label>
-
-        <select id="sort" name="sort">
-
-            <?php foreach ($sortOptions as $value => $label): ?>
-
-                <option
-                    value="<?= e($value) ?>"
-                    <?= $sort === $value ? 'selected' : '' ?>
-                >
-                    <?= e($label) ?>
-                </option>
-
-            <?php endforeach; ?>
-
-        </select>
-    </p>
-
-    <p>
-        <label for="view">Show:</label>
-        <select name="view" id="view">
-            <option value="all" <?= $view === 'all' ? 'selected' : '' ?>>Available</option>
-            <option value="saved" <?= $view === 'saved' ? 'selected' : '' ?>>Saved</option>
-            <option value="hidden" <?= $view === 'hidden' ? 'selected' : '' ?>>Hidden</option>
-        </select>
-    </p>
-
-    <button type="submit">Search Studies</button>
-
-    <a href="browse-studies.php">Clear Filters</a>
-
-</form>
-
-<hr>
-
-<h3><?= e(ucfirst($view === 'all' ? 'available' : $view)) ?> Research Studies</h3>
-<?php if (is_string($preferenceNotice)): ?>
-    <p role="status"><?= e($preferenceNotice) ?></p>
-<?php endif; ?>
-
-<?php if (!empty($errors)): ?>
-
-    <div role="alert">
-        <ul>
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-
-<?php elseif (empty($studies)): ?>
-
-    <p>No research studies match your selected filters.</p>
-
-<?php else: ?>
-
-    <p>
-        Studies found: <?= count($studies) ?>
-    </p>
-
-    <?php foreach ($studies as $study): ?>
-
-        <article>
-
-            <h4><?= e($study['title']) ?></h4>
-
-            <p>
-                Topic: <?= e($study['topic']) ?>
-            </p>
-
-            <p>
-                Researcher:
-                <?= e($study['first_name']) ?>
-                <?= e($study['last_name']) ?>
-            </p>
-
-            <p>
-                Institution:
-                <?= e($study['institution']) ?>
-            </p>
-
-            <p>
-                Participation Format:
-                <?= e($study['participation_format']) ?>
-            </p>
-
-            <p>
-                Location:
-                <?= e($study['location'] ?? 'Online') ?>
-            </p>
-
-            <p>
-                Reimbursement:
-                £<?= number_format(
-                    (float)$study['reimbursement_amount'],
-                    2
-                ) ?>
-            </p>
-
-            <p>
-                Application Deadline:
-                <?= e($study['application_deadline']) ?>
-            </p>
-
-            <details>
-                <summary>View Study Details</summary>
-
-                <h5>Research Aim</h5>
-                <p><?= nl2br(e($study['aim'])) ?></p>
-
-                <h5>Study Description</h5>
-                <p><?= nl2br(e($study['description'])) ?></p>
-
-                <h5>Participant Tasks</h5>
-                <p><?= nl2br(e($study['participation_tasks'])) ?></p>
-
-                <h5>Eligibility Requirements</h5>
-                <p><?= nl2br(e(
-                    $study['eligibility_requirements']
-                )) ?></p>
-
-                <h5>Study Dates</h5>
-                <p>
-                    <?= e($study['start_date']) ?>
-                    to
-                    <?= e($study['end_date']) ?>
-                </p>
-
-                <h5>Reimbursement Details</h5>
-                <p><?= e(
-                    $study['reimbursement_details']
-                    ?? 'Not specified'
-                ) ?></p>
-
-                <h5>Anonymous Participation</h5>
-                <p>
-                    <?= $study['anonymous_participation_allowed']
-                        ? 'Allowed'
-                        : 'Not allowed' ?>
-                </p>
-            </details>
-
-            
-            <?php if ($study['application_status'] !== null): ?>
-                <p>
-                    Your application: <strong><?= e(ucfirst($study['application_status'])) ?></strong>
-                </p>
-                <p><a href="my-applications.php">View My Applications</a></p>
-            <?php elseif ($study['invitation_status'] !== null): ?>
-                <p>
-                    Your invitation: <strong><?= e(ucfirst($study['invitation_status'])) ?></strong>
-                </p>
-                <p><a href="my-invitations.php">View My Invitations</a></p>
-            <?php else: ?>
-                <p><a href="apply-study.php?id=<?= (int)$study['study_id'] ?>">View and Apply</a></p>
-            <?php endif; ?>
-
-            <form method="post" action="preference-action.php">
-                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
-                <input type="hidden" name="kind" value="study">
-                <input type="hidden" name="item_id" value="<?= (int)$study['study_id'] ?>">
-                <input type="hidden" name="return_page" value="browse-studies.php">
-                <input type="hidden" name="return_query" value="<?= e(http_build_query($_GET)) ?>">
-                <button type="submit" name="action" value="<?= $study['preference_status'] === 'saved' ? 'clear' : 'save' ?>">
-                    <?= $study['preference_status'] === 'saved' ? 'Remove saved' : 'Save study' ?>
-                </button>
-                <button type="submit" name="action" value="<?= $study['preference_status'] === 'hidden' ? 'clear' : 'hide' ?>">
-                    <?= $study['preference_status'] === 'hidden' ? 'Restore study' : 'Hide study' ?>
-                </button>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="volunteer-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="volunteer-dashboard.php">Dashboard</a>
+            <a href="browse-studies.php" aria-current="page">Studies</a>
+            <a href="my-applications.php">Applications</a>
+            <a href="my-invitations.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
+        </nav>
+    </div>
+</header>
 
-            <hr>
+<main class="page-shell studies-page">
+    <section class="studies-banner" aria-labelledby="studies-page-title">
+        <div>
+            <span class="eyebrow">Research opportunities</span>
+            <h1 id="studies-page-title">Find your next research study</h1>
+            <p>Welcome back, <?= e($user['first_name']) ?>! Explore available studies, track your applications and save the opportunities that interest you.</p>
+        </div>
+        <div class="studies-banner__links">
+            <a class="btn btn--primary" href="my-applications.php">My applications</a>
+            <a class="btn studies-btn--outline" href="my-invitations.php">My invitations</a>
+        </div>
+    </section>
 
-        </article>
+    <section class="studies-filter-panel" aria-labelledby="studies-search-title">
+        <div class="studies-section-heading">
+            <div>
+                <span class="eyebrow">Discover studies</span>
+                <h2 id="studies-search-title">Search and filter</h2>
+            </div>
+            <p>Find a study by interest, location or participation format.</p>
+        </div>
 
-    <?php endforeach; ?>
+        <form method="get" action="browse-studies.php" class="studies-search-form">
+            <div class="studies-filter-grid">
+                <div class="field">
+                    <label for="keyword">Search keyword</label>
+                    <input type="search" id="keyword" name="keyword" maxlength="100" placeholder="e.g. technology, wellbeing" value="<?= e($keyword) ?>">
+                </div>
+                <div class="field">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" maxlength="150" placeholder="e.g. Newcastle" value="<?= e($location) ?>">
+                </div>
+                <div class="field">
+                    <label for="format">Participation format</label>
+                    <select id="format" name="format">
+                        <?php foreach ($formatOptions as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= $format === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="sort">Sort by</label>
+                    <select id="sort" name="sort">
+                        <?php foreach ($sortOptions as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= $sort === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="view">Show</label>
+                    <select name="view" id="view">
+                        <option value="all" <?= $view === 'all' ? 'selected' : '' ?>>Available</option>
+                        <option value="saved" <?= $view === 'saved' ? 'selected' : '' ?>>Saved</option>
+                        <option value="hidden" <?= $view === 'hidden' ? 'selected' : '' ?>>Hidden</option>
+                    </select>
+                </div>
+            </div>
+            <div class="studies-filter-actions">
+                <button class="btn btn--primary" type="submit">Search studies</button>
+                <a class="btn studies-btn--outline" href="browse-studies.php">Clear filters</a>
+            </div>
+        </form>
+    </section>
 
-<?php endif; ?>
+    <section class="studies-results" aria-labelledby="studies-results-title">
+        <div class="studies-section-heading studies-results__heading">
+            <div>
+                <span class="eyebrow">Your opportunities</span>
+                <h2 id="studies-results-title"><?= e($view === 'all' ? 'Available' : ucfirst($view)) ?> research studies</h2>
+            </div>
+            <?php if (empty($errors)): ?>
+                <p class="studies-result-count"><?= count($studies) ?> <?= count($studies) === 1 ? 'study' : 'studies' ?> found</p>
+            <?php endif; ?>
+        </div>
 
-<p>
-    <a href="volunteer-dashboard.php">
-        Back to Volunteer Dashboard
-    </a>
-</p>
+        <?php if (is_string($preferenceNotice)): ?>
+            <div class="feedback feedback--success studies-feedback" role="status"><?= e($preferenceNotice) ?></div>
+        <?php endif; ?>
 
+        <?php if (!empty($errors)): ?>
+            <div class="feedback feedback--error studies-feedback" role="alert">
+                <strong>Unable to complete your search.</strong>
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?= e($error) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php elseif (empty($studies)): ?>
+            <div class="studies-empty">
+                <h3>No studies found</h3>
+                <p>No research studies match these filters. Try another keyword or change your search options.</p>
+                <a class="btn btn--primary" href="browse-studies.php">View available studies</a>
+            </div>
+        <?php else: ?>
+            <div class="studies-grid">
+                <?php foreach ($studies as $study): ?>
+                    <article class="study-card">
+                        <div class="study-card__top">
+                            <div class="study-card__tags">
+                                <span class="study-tag"><?= e($study['topic']) ?></span>
+                                <span class="study-tag study-tag--light"><?= e($formatOptions[$study['participation_format']] ?? $study['participation_format']) ?></span>
+                            </div>
+                            <h3><?= e($study['title']) ?></h3>
+                            <p class="study-card__byline">By <?= e($study['first_name']) ?> <?= e($study['last_name']) ?><?php if (!empty($study['institution'])): ?> · <?= e($study['institution']) ?><?php endif; ?></p>
+                        </div>
+
+                        <dl class="study-meta">
+                            <div>
+                                <dt>Location</dt>
+                                <dd><?= e($study['location'] ?: ($study['participation_format'] === 'online' ? 'Online' : 'Not specified')) ?></dd>
+                            </div>
+                            <div>
+                                <dt>Reimbursement</dt>
+                                <dd>£<?= number_format((float)$study['reimbursement_amount'], 2) ?></dd>
+                            </div>
+                            <div>
+                                <dt>Application deadline</dt>
+                                <dd><?= e($study['application_deadline']) ?></dd>
+                            </div>
+                        </dl>
+
+                        <details class="study-details">
+                            <summary>View study details</summary>
+                            <div class="study-details__content">
+                                <h4>Research aim</h4>
+                                <p><?= nl2br(e($study['aim'])) ?></p>
+                                <h4>Study description</h4>
+                                <p><?= nl2br(e($study['description'])) ?></p>
+                                <h4>Participant tasks</h4>
+                                <p><?= nl2br(e($study['participation_tasks'])) ?></p>
+                                <h4>Eligibility requirements</h4>
+                                <p><?= nl2br(e($study['eligibility_requirements'])) ?></p>
+                                <h4>Study dates</h4>
+                                <p><?= e($study['start_date']) ?> to <?= e($study['end_date']) ?></p>
+                                <h4>Reimbursement details</h4>
+                                <p><?= e($study['reimbursement_details'] ?? 'Not specified') ?></p>
+                                <h4>Anonymous participation</h4>
+                                <p><?= $study['anonymous_participation_allowed'] ? 'Allowed' : 'Not allowed' ?></p>
+                            </div>
+                        </details>
+
+                        <div class="study-card__actions">
+                            <?php if ($study['application_status'] !== null): ?>
+                                <p class="study-state">Your application: <strong><?= e(ucfirst($study['application_status'])) ?></strong></p>
+                                <a class="btn btn--primary" href="my-applications.php">View my applications</a>
+                            <?php elseif ($study['invitation_status'] !== null): ?>
+                                <p class="study-state">Your invitation: <strong><?= e(ucfirst($study['invitation_status'])) ?></strong></p>
+                                <a class="btn btn--primary" href="my-invitations.php">View my invitations</a>
+                            <?php else: ?>
+                                <a class="btn btn--primary" href="apply-study.php?id=<?= (int)$study['study_id'] ?>">View and apply</a>
+                            <?php endif; ?>
+
+                            <form class="study-preferences" method="post" action="preference-action.php">
+                                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
+                                <input type="hidden" name="kind" value="study">
+                                <input type="hidden" name="item_id" value="<?= (int)$study['study_id'] ?>">
+                                <input type="hidden" name="return_page" value="browse-studies.php">
+                                <input type="hidden" name="return_query" value="<?= e(http_build_query($_GET)) ?>">
+                                <button class="study-action-secondary" type="submit" name="action" value="<?= $study['preference_status'] === 'saved' ? 'clear' : 'save' ?>">
+                                    <?= $study['preference_status'] === 'saved' ? 'Remove saved' : 'Save study' ?>
+                                </button>
+                                <button class="study-action-secondary" type="submit" name="action" value="<?= $study['preference_status'] === 'hidden' ? 'clear' : 'hide' ?>">
+                                    <?= $study['preference_status'] === 'hidden' ? 'Restore study' : 'Hide study' ?>
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
