@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireLogin();
 $pdo = getConnection();
@@ -140,7 +140,9 @@ if (is_string($rawQuery) && strlen($rawQuery) < 1200) {
     }
 }
 
-$redirect = $page;
+$redirect = $kind === 'study'
+    ? '../../pages/volunteer/browse-studies.php'
+    : '../../pages/researcher/find-volunteers.php';
 if ($query !== []) {
     $redirect .= '?' . http_build_query($query);
 }

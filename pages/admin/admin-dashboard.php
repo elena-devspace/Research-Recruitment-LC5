@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireRole('admin');
 $pdo = getConnection();
@@ -42,20 +42,20 @@ $csrfToken = e($_SESSION['csrf_token']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="admin-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
         <nav class="site-nav dashboard-nav" aria-label="Main navigation">
             <a href="admin-dashboard.php" aria-current="page">Dashboard</a>
             <a href="review-researchers.php">Researcher verification</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>

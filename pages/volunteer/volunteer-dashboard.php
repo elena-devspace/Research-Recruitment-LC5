@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireRole('volunteer');
 $name = htmlspecialchars((string)($user['first_name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -17,13 +17,13 @@ $csrfToken = htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES | ENT_SUBSTITU
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer Dashboard | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="volunteer-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -32,8 +32,8 @@ $csrfToken = htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES | ENT_SUBSTITU
             <a href="browse-studies.php">Studies</a>
             <a href="my-applications.php">Applications</a>
             <a href="my-invitations.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
@@ -95,7 +95,7 @@ $csrfToken = htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES | ENT_SUBSTITU
                 <div class="dashboard-card__icon" aria-hidden="true">04</div>
                 <h3>My profile</h3>
                 <p>Update your interests, availability, preferences and researcher visibility.</p>
-                <a class="dashboard-card__link" href="profile.php">Manage profile <span aria-hidden="true">→</span></a>
+                <a class="dashboard-card__link" href="../shared/profile.php">Manage profile <span aria-hidden="true">→</span></a>
             </article>
         </div>
     </section>

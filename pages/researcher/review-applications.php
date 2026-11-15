@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/study-capacity.php';
+require_once __DIR__ . '/../../app/core/auth.php';
+require_once __DIR__ . '/../../app/recruitment/study-capacity.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -228,14 +228,14 @@ foreach ($applications as $application) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Review Applications | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/review-applications.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/review-applications.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="academic-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -245,8 +245,8 @@ foreach ($applications as $application) {
             <a href="review-applications.php" aria-current="page">Applications</a>
             <a href="find-volunteers.php">Find volunteers</a>
             <a href="my-sent-requests.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button class="dashboard-logout__button" type="submit">Log out</button>
             </form>

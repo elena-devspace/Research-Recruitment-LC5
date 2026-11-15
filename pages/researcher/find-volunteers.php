@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/volunteer-matching.php';
-require_once __DIR__ . '/postcode-distance.php';
+require_once __DIR__ . '/../../app/core/auth.php';
+require_once __DIR__ . '/../../app/matching/volunteer-matching.php';
+require_once __DIR__ . '/../../app/matching/postcode-distance.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -199,14 +199,14 @@ if ($selectedStudy !== null) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Find Volunteers | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/find-volunteers.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/find-volunteers.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="academic-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -216,8 +216,8 @@ if ($selectedStudy !== null) {
             <a href="review-applications.php">Applications</a>
             <a href="find-volunteers.php" aria-current="page">Find volunteers</a>
             <a href="my-sent-requests.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button class="dashboard-logout__button" type="submit">Log out</button>
             </form>
@@ -427,7 +427,7 @@ if ($selectedStudy !== null) {
 
                         <div class="find-card__actions">
                             <a class="btn btn--primary find-card__invite" href="send-request.php?volunteer_id=<?= $volunteerId ?>">Invite to research study</a>
-                            <form method="post" action="preference-action.php" class="find-card__preferences">
+                            <form method="post" action="../../actions/preferences/preference-action.php" class="find-card__preferences">
                                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
                                 <input type="hidden" name="kind" value="volunteer">
                                 <input type="hidden" name="item_id" value="<?= $volunteerId ?>">

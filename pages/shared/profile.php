@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireLogin();
 $pdo = getConnection();
@@ -279,32 +279,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/profile.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/profile.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="<?= $role === 'volunteer' ? 'volunteer-dashboard.php' : 'academic-dashboard.php' ?>">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
         <nav class="site-nav dashboard-nav" aria-label="Main navigation">
             <?php if ($role === 'volunteer'): ?>
-                <a href="volunteer-dashboard.php">Dashboard</a>
-                <a href="browse-studies.php">Studies</a>
-                <a href="my-applications.php">Applications</a>
-                <a href="my-invitations.php">Invitations</a>
+                <a href="../volunteer/volunteer-dashboard.php">Dashboard</a>
+                <a href="../volunteer/browse-studies.php">Studies</a>
+                <a href="../volunteer/my-applications.php">Applications</a>
+                <a href="../volunteer/my-invitations.php">Invitations</a>
             <?php else: ?>
-                <a href="academic-dashboard.php">Dashboard</a>
-                <a href="my-studies.php">My studies</a>
-                <a href="review-applications.php">Applications</a>
-                <a href="find-volunteers.php">Find volunteers</a>
-                <a href="my-sent-requests.php">Invitations</a>
+                <a href="../researcher/academic-dashboard.php">Dashboard</a>
+                <a href="../researcher/my-studies.php">My studies</a>
+                <a href="../researcher/review-applications.php">Applications</a>
+                <a href="../researcher/find-volunteers.php">Find volunteers</a>
+                <a href="../researcher/my-sent-requests.php">Invitations</a>
             <?php endif; ?>
             <a href="profile.php" aria-current="page">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
@@ -321,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <div class="profile-hero__aside">
             <span class="profile-hero__role"><?= $role === 'volunteer' ? 'Volunteer account' : 'Academic researcher account' ?></span>
-            <a class="btn profile-btn--light" href="<?= $role === 'volunteer' ? 'volunteer-dashboard.php' : 'academic-dashboard.php' ?>">Back to dashboard</a>
+            <a class="btn profile-btn--light" href="<?= $role === 'volunteer' ? '../volunteer/volunteer-dashboard.php' : '../researcher/academic-dashboard.php' ?>">Back to dashboard</a>
         </div>
     </section>
 

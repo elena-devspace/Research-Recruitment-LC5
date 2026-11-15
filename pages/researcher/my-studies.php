@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/study-capacity.php';
+require_once __DIR__ . '/../../app/core/auth.php';
+require_once __DIR__ . '/../../app/recruitment/study-capacity.php';
 
 $user = requireRole('academic');
 $deletedTitle = $_SESSION['deleted_study_title'] ?? null;
@@ -85,9 +85,9 @@ foreach ($studies as $study) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Research Studies | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/my-studies.css?v=popup-polish-2">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/my-studies.css?v=popup-polish-2">
     <!-- Self-contained confirmation-dialog styles to prevent stale CSS from showing an unstyled native dialog. -->
     <style>
         dialog#study-action-dialog {
@@ -280,7 +280,7 @@ foreach ($studies as $study) {
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="academic-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -290,8 +290,8 @@ foreach ($studies as $study) {
             <a href="review-applications.php">Applications</a>
             <a href="find-volunteers.php">Find volunteers</a>
             <a href="my-sent-requests.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
@@ -452,13 +452,13 @@ foreach ($studies as $study) {
                             <?php if ($status === 'draft'): ?>
                                 <a class="btn studies-btn--secondary" href="edit-study.php?id=<?= $studyId ?>">Edit study</a>
                                 <?php if ($canPublish): ?>
-                                    <a class="btn btn--primary" href="publish-study.php?id=<?= $studyId ?>" data-study-action="publish">Publish study</a>
+                                    <a class="btn btn--primary" href="../../actions/studies/publish-study.php?id=<?= $studyId ?>" data-study-action="publish">Publish study</a>
                                 <?php else: ?>
                                     <p class="study-card__hint">Researcher verification is required before publishing.</p>
                                 <?php endif; ?>
-                                <a class="btn studies-btn--danger" href="delete-study.php?id=<?= $studyId ?>" data-study-action="delete">Delete draft</a>
+                                <a class="btn studies-btn--danger" href="../../actions/studies/delete-study.php?id=<?= $studyId ?>" data-study-action="delete">Delete draft</a>
                             <?php elseif ($status === 'open'): ?>
-                                <a class="btn studies-btn--danger" href="close-study.php?id=<?= $studyId ?>" data-study-action="close">Close study</a>
+                                <a class="btn studies-btn--danger" href="../../actions/studies/close-study.php?id=<?= $studyId ?>" data-study-action="close">Close study</a>
                             <?php else: ?>
                                 <span class="study-card__closed-note">This study is no longer accepting applications.</span>
                             <?php endif; ?>

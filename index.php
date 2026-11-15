@@ -1,16 +1,16 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/app/core/auth.php';
 
 // The homepage is public; account information is shown only to signed-in users.
 $user = isset($_SESSION['user_id']) ? currentUser() : null;
 $role = (string) ($user['role'] ?? '');
 
 $dashboardRoutes = [
-    'volunteer' => 'volunteer-dashboard.php',
-    'academic' => 'academic-dashboard.php',
-    'admin' => 'admin-dashboard.php'
+    'volunteer' => 'pages/volunteer/volunteer-dashboard.php',
+    'academic' => 'pages/researcher/academic-dashboard.php',
+    'admin' => 'pages/admin/admin-dashboard.php'
 ];
 
 $dashboard = $dashboardRoutes[$role] ?? null;
@@ -30,12 +30,12 @@ function escapeHome($value): string
 
 // Guests register first; signed-in users only access pages for their role.
 $findStudyLink = $role === 'volunteer'
-    ? 'browse-studies.php'
-    : ($dashboard !== null ? '#for-volunteers' : 'register.php');
+    ? 'pages/volunteer/browse-studies.php'
+    : ($dashboard !== null ? '#for-volunteers' : 'pages/public/register.php');
 
 $recruitLink = $role === 'academic'
-    ? 'academic-dashboard.php'
-    : ($dashboard !== null ? '#for-researchers' : 'register.php');
+    ? 'pages/researcher/academic-dashboard.php'
+    : ($dashboard !== null ? '#for-researchers' : 'pages/public/register.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,13 +62,13 @@ $recruitLink = $role === 'academic'
 
             <?php if ($dashboard !== null): ?>
                 <a href="<?= escapeHome($dashboard) ?>">Dashboard</a>
-                <form method="post" action="logout.php" class="home-logout-form">
+                <form method="post" action="actions/account/logout.php" class="home-logout-form">
                     <input type="hidden" name="csrf_token" value="<?= escapeHome($_SESSION['csrf_token']) ?>">
                     <button type="submit" class="home-nav-logout">Log out</button>
                 </form>
             <?php else: ?>
-                <a href="login.php">Log in</a>
-                <a href="register.php" class="nav-action">Sign up</a>
+                <a href="pages/public/login.php">Log in</a>
+                <a href="pages/public/register.php" class="nav-action">Sign up</a>
             <?php endif; ?>
         </nav>
     </div>
@@ -99,7 +99,7 @@ $recruitLink = $role === 'academic'
                 </div>
 
                 <?php if ($dashboard === null): ?>
-                    <p class="home-hero-hint">Already have an account? <a href="login.php">Log in</a> to continue.</p>
+                    <p class="home-hero-hint">Already have an account? <a href="pages/public/login.php">Log in</a> to continue.</p>
                 <?php else: ?>
                     <p class="home-hero-hint">Your <a href="<?= escapeHome($dashboard) ?>">dashboard</a> is ready when you are.</p>
                 <?php endif; ?>
@@ -188,7 +188,7 @@ $recruitLink = $role === 'academic'
                     <h2 id="final-cta-title">Be part of the next research project.</h2>
                     <p>Join as a volunteer or register as an academic researcher.</p>
                 </div>
-                <a class="home-btn home-btn-primary" href="register.php">Create an account <span aria-hidden="true">→</span></a>
+                <a class="home-btn home-btn-primary" href="pages/public/register.php">Create an account <span aria-hidden="true">→</span></a>
             </section>
         <?php endif; ?>
     </div>

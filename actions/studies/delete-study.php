@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireRole('academic');
 $pdo = getConnection();
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['csrf_token'] =
                     bin2hex(random_bytes(32));
 
-                header('Location: my-studies.php');
+                header('Location: ../../pages/researcher/my-studies.php');
                 exit;
             }
 
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </form>
 
 <p>
-    <a href="my-studies.php">
+    <a href="../../pages/researcher/my-studies.php">
         Cancel — Keep My Study
     </a>
 </p>

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireRole('volunteer');
 $pdo = getConnection();
@@ -216,14 +216,14 @@ if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Research Studies | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/browse-studies.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/browse-studies.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="volunteer-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -232,8 +232,8 @@ if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
             <a href="browse-studies.php" aria-current="page">Studies</a>
             <a href="my-applications.php">Applications</a>
             <a href="my-invitations.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
@@ -394,7 +394,7 @@ if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
                                 <a class="btn btn--primary" href="apply-study.php?id=<?= (int)$study['study_id'] ?>">View and apply</a>
                             <?php endif; ?>
 
-                            <form class="study-preferences" method="post" action="preference-action.php">
+                            <form class="study-preferences" method="post" action="../../actions/preferences/preference-action.php">
                                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['preference_csrf']) ?>">
                                 <input type="hidden" name="kind" value="study">
                                 <input type="hidden" name="item_id" value="<?= (int)$study['study_id'] ?>">

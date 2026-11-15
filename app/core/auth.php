@@ -36,7 +36,7 @@ function requireLogin(): array
     $user = currentUser();
 
     if ($user === null) {
-        header('Location: login.php');
+        header('Location: ../../pages/public/login.php');
         exit;
     }
 

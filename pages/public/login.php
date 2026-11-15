@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../../app/core/db.php';
 
 session_start();
 
@@ -10,9 +10,9 @@ if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
 }
 
 $dashboardRoutes = [
-    'volunteer' => 'volunteer-dashboard.php',
-    'academic' => 'academic-dashboard.php',
-    'admin' => 'admin-dashboard.php'
+    'volunteer' => '../volunteer/volunteer-dashboard.php',
+    'academic' => '../researcher/academic-dashboard.php',
+    'admin' => '../admin/admin-dashboard.php'
 ];
 
 $error = '';
@@ -77,12 +77,12 @@ $dashboard = $dashboardRoutes[(string)($_SESSION['role'] ?? '')] ?? null;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Log In | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="login.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -112,7 +112,7 @@ $dashboard = $dashboardRoutes[(string)($_SESSION['role'] ?? '')] ?? null;
             <?php if ($dashboard !== null): ?>
                 <a class="btn btn--primary btn--block" href="<?= escape($dashboard) ?>">Go to Dashboard</a>
             <?php endif; ?>
-            <form method="post" action="logout.php">
+            <form method="post" action="../../actions/account/logout.php">
                 <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
                 <p class="auth-footer-text"><button type="submit" class="btn">Log out</button></p>
             </form>

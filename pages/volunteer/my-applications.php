@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../../app/core/auth.php';
 
 $user = requireRole('volunteer');
 $pdo = getConnection();
@@ -155,14 +155,14 @@ foreach ($applications as $application) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Applications | Research Recruitment</title>
-    <link rel="stylesheet" href="assets/css/site.css">
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/css/my-applications.css">
+    <link rel="stylesheet" href="../../assets/css/site.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../../assets/css/my-applications.css?v=withdraw-confirmation-1">
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
-        <a class="brand" href="volunteer-dashboard.php">
+        <a class="brand" href="../../index.php" aria-label="Research Recruitment homepage">
             <span class="brand__mark">LOGO</span>
             <span class="brand__name">Research Recruitment</span>
         </a>
@@ -171,8 +171,8 @@ foreach ($applications as $application) {
             <a href="browse-studies.php">Studies</a>
             <a href="my-applications.php" aria-current="page">Applications</a>
             <a href="my-invitations.php">Invitations</a>
-            <a href="profile.php">My profile</a>
-            <form action="logout.php" method="post" class="dashboard-logout">
+            <a href="../shared/profile.php">My profile</a>
+            <form action="../../actions/account/logout.php" method="post" class="dashboard-logout">
                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
                 <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
@@ -313,6 +313,7 @@ foreach ($applications as $application) {
                                 method="post"
                                 action="my-applications.php"
                                 class="application-card__actions"
+                                data-withdraw-application
                                 onsubmit="return confirm('Are you sure you want to withdraw this application?');"
                             >
                                 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
@@ -338,6 +339,75 @@ foreach ($applications as $application) {
         </div>
     </section>
 </main>
+
+<dialog id="withdraw-application-dialog" aria-labelledby="withdraw-dialog-title" aria-describedby="withdraw-dialog-description">
+    <div class="withdraw-modal__head">
+        <span class="withdraw-modal__icon" aria-hidden="true">!</span>
+        <div class="withdraw-modal__heading">
+            <span class="withdraw-modal__eyebrow">Confirm application action</span>
+            <h2 id="withdraw-dialog-title">Withdraw this application?</h2>
+        </div>
+        <button type="button" class="withdraw-modal__close" id="withdraw-dialog-close" aria-label="Close confirmation">&times;</button>
+    </div>
+    <div class="withdraw-modal__body">
+        <p class="withdraw-modal__label">Selected study</p>
+        <p class="withdraw-modal__study" id="withdraw-dialog-study"></p>
+        <p class="withdraw-modal__description" id="withdraw-dialog-description">Your application will be marked as withdrawn and you will no longer be considered for this study through this application.</p>
+    </div>
+    <div class="withdraw-modal__actions">
+        <button class="btn withdraw-modal__cancel" type="button" id="withdraw-dialog-cancel" autofocus>Cancel</button>
+        <button class="btn withdraw-modal__confirm" type="button" id="withdraw-dialog-confirm">Yes, withdraw application</button>
+    </div>
+</dialog>
+
+<script>
+(() => {
+    const dialog = document.getElementById('withdraw-application-dialog');
+    if (!dialog || typeof dialog.showModal !== 'function' || typeof HTMLFormElement.prototype.requestSubmit !== 'function') return;
+
+    const studyName = document.getElementById('withdraw-dialog-study');
+    const cancelButton = document.getElementById('withdraw-dialog-cancel');
+    const closeButton = document.getElementById('withdraw-dialog-close');
+    const confirmButton = document.getElementById('withdraw-dialog-confirm');
+    let selectedForm = null;
+    let confirmedForm = null;
+
+    document.querySelectorAll('form[data-withdraw-application]').forEach(form => {
+        form.removeAttribute('onsubmit');
+        form.addEventListener('submit', event => {
+            if (confirmedForm === form) return;
+            event.preventDefault();
+            if (dialog.open) return;
+
+            const card = form.closest('.application-card');
+            studyName.textContent = card?.querySelector('h3')?.textContent?.trim() || 'Selected study';
+            selectedForm = form;
+            dialog.showModal();
+        });
+    });
+
+    confirmButton.addEventListener('click', () => {
+        if (!selectedForm) return;
+        confirmedForm = selectedForm;
+        selectedForm = null;
+        try {
+            confirmedForm.requestSubmit();
+        } finally {
+            confirmedForm = null;
+            dialog.close();
+        }
+    });
+
+    cancelButton.addEventListener('click', () => dialog.close());
+    closeButton.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => {
+        if (event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+        if (!dialog.open) selectedForm = null;
+    });
+})();
+</script>
 
 <footer class="site-footer">
     <div class="site-footer__inner">
