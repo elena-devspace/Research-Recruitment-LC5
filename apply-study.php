@@ -36,12 +36,23 @@ $studyStmt = $pdo->prepare("
         s.study_id,
         s.title,
         s.topic,
+        s.aim,
         s.description,
         s.participation_tasks,
         s.eligibility_requirements,
         s.participation_format,
+        s.location,
+        s.start_date,
+        s.end_date,
+        s.reimbursement_amount,
+        s.reimbursement_details,
+        s.participant_capacity,
+        s.anonymous_participation_allowed,
         s.is_test,
-        s.application_deadline
+        s.application_deadline,
+        u.first_name AS researcher_first_name,
+        u.last_name AS researcher_last_name,
+        ap.institution
     FROM studies s
 
     INNER JOIN users u
@@ -385,280 +396,237 @@ $invitation = $invitationCheck->fetch(
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Apply for Research Study
-    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply for Research Study | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/apply-study.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-
-<h2>Apply for Research Study</h2>
-
-<h3>
-    <?= e($study['title']) ?>
-</h3>
-
-<p>
-    Topic:
-    <?= e($study['topic']) ?>
-</p>
-
-<h4>Description</h4>
-
-<p>
-    <?= nl2br(e($study['description'])) ?>
-</p>
-
-<h4>Participant Tasks</h4>
-
-<p>
-    <?= nl2br(e($study['participation_tasks'])) ?>
-</p>
-
-<h4>Eligibility Requirements</h4>
-
-<p>
-    <?= nl2br(e($study['eligibility_requirements'])) ?>
-</p>
-
-<h4>Application Deadline</h4>
-
-<p>
-    <?= e($study['application_deadline']) ?>
-</p>
-
-<hr>
-
-<?php if ($success): ?>
-
-    <p role="status">
-        Application submitted successfully!
-    </p>
-
-<?php endif; ?>
-
-<?php if ($error !== ''): ?>
-
-    <p role="alert">
-        <?= e($error) ?>
-    </p>
-
-<?php endif; ?>
-
-<?php if ($existing): ?>
-
-    <h3>Your Application</h3>
-
-    <p>
-        Current status:
-        <strong>
-            <?= e(ucfirst($existing['status'])) ?>
-        </strong>
-    </p>
-
-    <?php if ($existing['status'] === 'pending'): ?>
-
-        <p>
-            Your application has been submitted
-            and is awaiting researcher review.
-        </p>
-
-    <?php elseif ($existing['status'] === 'accepted'): ?>
-
-        <p>
-            Your application has been accepted
-            by the researcher.
-        </p>
-
-    <?php elseif ($existing['status'] === 'rejected'): ?>
-
-        <p>
-            Your application was not accepted
-            by the researcher.
-        </p>
-
-    <?php elseif ($existing['status'] === 'withdrawn'): ?>
-
-        <p>
-            You have withdrawn your application
-            for this study.
-        </p>
-
-    <?php else: ?>
-
-        <p>
-            You have already submitted an application
-            for this study.
-        </p>
-
-    <?php endif; ?>
-
-    <p>
-        A duplicate application cannot be submitted.
-    </p>
-
-    <p>
-        <a href="my-applications.php">
-            View My Applications
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="volunteer-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
         </a>
-    </p>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="volunteer-dashboard.php">Dashboard</a>
+            <a href="browse-studies.php" aria-current="page">Studies</a>
+            <a href="my-applications.php">Applications</a>
+            <a href="my-invitations.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
 
-<?php endif; ?>
+<main class="page-shell apply-page">
+    <a class="apply-back" href="browse-studies.php">← Back to research studies</a>
 
-<?php if ($invitation): ?>
+    <section class="apply-hero" aria-labelledby="apply-page-title">
+        <div>
+            <span class="eyebrow">Research opportunities</span>
+            <h1 id="apply-page-title">Apply for a research study</h1>
+            <p>Review the study details, check eligibility and manage your participation.</p>
+        </div>
+        <a class="btn apply-btn--outline" href="my-applications.php">My applications</a>
+    </section>
 
-    <h3>Your Research Invitation</h3>
+    <div class="apply-layout">
+        <article class="apply-panel apply-info" aria-labelledby="apply-study-title">
+            <div class="apply-tags">
+                <span class="apply-tag"><?= e($study['topic']) ?></span>
+                <span class="apply-tag apply-tag--light"><?= e(ucwords(str_replace('_', ' ', $study['participation_format']))) ?></span>
+                <?php if ((int)$study['is_test'] === 1): ?>
+                    <span class="apply-tag apply-tag--light">Fictional test study</span>
+                <?php endif; ?>
+            </div>
+            <h2 id="apply-study-title"><?= e($study['title']) ?></h2>
+            <p class="apply-info__intro">
+                By <?= e(trim($study['researcher_first_name'] . ' ' . $study['researcher_last_name'])) ?>
+                <?php if (!empty($study['institution'])): ?> · <?= e($study['institution']) ?><?php endif; ?>
+            </p>
 
-    <p>
-        Invitation status:
-        <strong>
-            <?= e(ucfirst($invitation['status'])) ?>
-        </strong>
-    </p>
+            <div class="apply-deadline">
+                <span>Application deadline</span>
+                <strong><?= e($study['application_deadline']) ?></strong>
+            </div>
 
-    <?php if ($invitation['status'] === 'pending'): ?>
+            <section class="apply-overview" aria-labelledby="apply-overview-heading">
+                <h3 id="apply-overview-heading">Study at a glance</h3>
+                <dl class="apply-overview__grid">
+                    <div class="apply-overview__item">
+                        <dt>Reimbursement</dt>
+                        <dd>£<?= number_format((float)$study['reimbursement_amount'], 2) ?></dd>
+                    </div>
+                    <div class="apply-overview__item">
+                        <dt>Participation format</dt>
+                        <dd><?= e(ucwords(str_replace('_', ' ', $study['participation_format']))) ?></dd>
+                    </div>
+                    <div class="apply-overview__item">
+                        <dt>Location</dt>
+                        <dd><?= e($study['participation_format'] === 'online' ? 'Online' : ($study['location'] ?: 'To be confirmed')) ?></dd>
+                    </div>
+                    <div class="apply-overview__item">
+                        <dt>Participant capacity</dt>
+                        <dd><?= $study['participant_capacity'] !== null ? e($study['participant_capacity']) . ' participants' : 'Not specified' ?></dd>
+                    </div>
+                    <div class="apply-overview__item">
+                        <dt>Study starts</dt>
+                        <dd><?= e($study['start_date'] ?: 'To be confirmed') ?></dd>
+                    </div>
+                    <div class="apply-overview__item">
+                        <dt>Study ends</dt>
+                        <dd><?= e($study['end_date'] ?: 'To be confirmed') ?></dd>
+                    </div>
+                    <div class="apply-overview__item apply-overview__item--wide">
+                        <dt>Anonymous participation</dt>
+                        <dd><?= (int)$study['anonymous_participation_allowed'] === 1 ? 'Allowed' : 'Not allowed' ?></dd>
+                    </div>
+                </dl>
+            </section>
 
-        <p>
-            You have already received an invitation
-            to participate in this study.
-        </p>
+            <section class="apply-info__section">
+                <h3>Reimbursement details</h3>
+                <p><?= !empty($study['reimbursement_details']) ? nl2br(e($study['reimbursement_details'])) : 'No additional reimbursement details provided.' ?></p>
+            </section>
 
-        <p>
-            Please respond to your invitation
-            instead of submitting a new application.
-        </p>
+            <?php if (!empty($study['aim'])): ?>
+                <section class="apply-info__section">
+                    <h3>Research aim</h3>
+                    <p><?= nl2br(e($study['aim'])) ?></p>
+                </section>
+            <?php endif; ?>
 
-    <?php elseif ($invitation['status'] === 'accepted'): ?>
+            <section class="apply-info__section">
+                <h3>Study description</h3>
+                <p><?= nl2br(e($study['description'])) ?></p>
+            </section>
 
-        <p>
-            You have already accepted an invitation
-            to participate in this study.
-        </p>
+            <section class="apply-info__section">
+                <h3>Participant tasks</h3>
+                <p><?= nl2br(e($study['participation_tasks'])) ?></p>
+            </section>
 
-        <p>
-            A separate application is not necessary.
-        </p>
+            <section class="apply-info__section">
+                <h3>Eligibility requirements</h3>
+                <p><?= nl2br(e($study['eligibility_requirements'])) ?></p>
+            </section>
+        </article>
 
-    <?php elseif ($invitation['status'] === 'declined'): ?>
+        <section class="apply-panel apply-form-panel" aria-labelledby="apply-form-heading">
+            <span class="eyebrow">Your participation</span>
+            <?php if ($existing): ?>
+                <h2 id="apply-form-heading">Your application</h2>
+            <?php elseif ($invitation): ?>
+                <h2 id="apply-form-heading">Your research invitation</h2>
+            <?php else: ?>
+                <h2 id="apply-form-heading">Submit your application</h2>
+                <p class="apply-form-panel__intro">Answer any required questions and include a message if you'd like.</p>
+            <?php endif; ?>
 
-        <p>
-            You previously declined an invitation
-            to this study.
-        </p>
+            <?php if ($success): ?>
+                <div class="feedback feedback--success" role="status">Application submitted successfully!</div>
+            <?php endif; ?>
 
-        <p>
-            A new application cannot be submitted
-            for a study with an existing invitation.
-        </p>
+            <?php if ($error !== ''): ?>
+                <div class="feedback feedback--error" role="alert"><?= e($error) ?></div>
+            <?php endif; ?>
 
-    <?php else: ?>
+            <?php if ($existing): ?>
+                <div class="apply-status">
+                    <span class="apply-status__label">Current application status</span>
+                    <strong class="apply-status__pill"><?= e(ucfirst($existing['status'])) ?></strong>
+                </div>
+                <?php if ($existing['status'] === 'pending'): ?>
+                    <p class="apply-status__text">Your application has been submitted and is awaiting researcher review.</p>
+                <?php elseif ($existing['status'] === 'accepted'): ?>
+                    <p class="apply-status__text">Your application has been accepted by the researcher.</p>
+                <?php elseif ($existing['status'] === 'rejected'): ?>
+                    <p class="apply-status__text">Your application was not accepted by the researcher.</p>
+                <?php elseif ($existing['status'] === 'withdrawn'): ?>
+                    <p class="apply-status__text">You have withdrawn your application for this study.</p>
+                <?php else: ?>
+                    <p class="apply-status__text">You have already submitted an application for this study.</p>
+                <?php endif; ?>
+                <p class="apply-small-note">A duplicate application cannot be submitted.</p>
+                <a class="btn btn--primary btn--block" href="my-applications.php">View my applications</a>
+            <?php endif; ?>
 
-        <p>
-            An invitation already exists for this study.
-            A separate application cannot be submitted.
-        </p>
+            <?php if ($invitation): ?>
+                <div class="apply-status">
+                    <span class="apply-status__label">Current invitation status</span>
+                    <strong class="apply-status__pill"><?= e(ucfirst($invitation['status'])) ?></strong>
+                </div>
+                <?php if ($invitation['status'] === 'pending'): ?>
+                    <p class="apply-status__text">You have already received an invitation to this study. Please respond to your invitation instead of submitting a new application.</p>
+                <?php elseif ($invitation['status'] === 'accepted'): ?>
+                    <p class="apply-status__text">You have already accepted an invitation to participate in this study. A separate application is not necessary.</p>
+                <?php elseif ($invitation['status'] === 'declined'): ?>
+                    <p class="apply-status__text">You previously declined an invitation to this study. A new application cannot be submitted for a study with an existing invitation.</p>
+                <?php else: ?>
+                    <p class="apply-status__text">An invitation already exists for this study. A separate application cannot be submitted.</p>
+                <?php endif; ?>
+                <a class="btn btn--primary btn--block" href="my-invitations.php">View my research invitations</a>
+            <?php endif; ?>
 
-    <?php endif; ?>
+            <?php if (!$existing && !$invitation): ?>
+                <form method="post" action="apply-study.php?id=<?= (int)$studyId ?>" class="apply-form">
+                    <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
 
-    <p>
-        <a href="my-invitations.php">
-            View My Research Invitations
-        </a>
-    </p>
+                    <?php if ($questions): ?>
+                        <fieldset class="apply-screening">
+                            <legend>Eligibility screening</legend>
+                            <p class="apply-small-note">All questions are required.</p>
+                            <?php foreach ($questions as $index => $question): ?>
+                                <?php $questionId = (int)$question['question_id']; ?>
+                                <fieldset class="apply-question">
+                                    <legend><span class="apply-question__number"><?= (int)$index + 1 ?></span><?= e($question['question_text']) ?></legend>
+                                    <div class="apply-answers">
+                                        <label class="apply-answer">
+                                            <input type="radio" name="eligibility_answers[<?= $questionId ?>]" value="yes" <?= ($submittedAnswers[$questionId] ?? '') === 'yes' ? 'checked' : '' ?> required>
+                                            <span>Yes</span>
+                                        </label>
+                                        <label class="apply-answer">
+                                            <input type="radio" name="eligibility_answers[<?= $questionId ?>]" value="no" <?= ($submittedAnswers[$questionId] ?? '') === 'no' ? 'checked' : '' ?> required>
+                                            <span>No</span>
+                                        </label>
+                                    </div>
+                                </fieldset>
+                            <?php endforeach; ?>
+                        </fieldset>
+                    <?php endif; ?>
 
-<?php endif; ?>
+                    <div class="field apply-message-field">
+                        <label for="message">Message to the researcher <span class="apply-optional">(optional)</span></label>
+                        <textarea id="message" name="message" rows="5" maxlength="1000" placeholder="Tell the researcher why this study interests you..."><?= e($message) ?></textarea>
+                        <span class="form-hint">Up to 1,000 characters (maximum 1,000 bytes).</span>
+                    </div>
 
-<?php if (!$existing && !$invitation): ?>
+                    <button class="btn btn--primary btn--block apply-submit" type="submit">Submit application</button>
+                </form>
+            <?php endif; ?>
 
-    <h3>Submit Your Application</h3>
+            <div class="apply-related">
+                <p>Looking for something else?</p>
+                <a href="my-applications.php">My applications</a>
+                <a href="my-invitations.php">My invitations</a>
+                <a href="browse-studies.php">Browse studies</a>
+            </div>
+        </section>
+    </div>
+</main>
 
-    <form
-        method="POST"
-        action="apply-study.php?id=<?= (int) $studyId ?>"
-    >
-
-        <input
-            type="hidden"
-            name="csrf_token"
-            value="<?= e($_SESSION['csrf_token']) ?>"
-        >
-
-        <?php if ($questions): ?>
-            <fieldset>
-                <legend>Eligibility screening (all questions required)</legend>
-                <?php foreach ($questions as $question): ?>
-                    <?php $questionId = (int)$question['question_id']; ?>
-                    <p><?= e($question['question_text']) ?></p>
-                    <label>
-                        <input type="radio"
-                               name="eligibility_answers[<?= $questionId ?>]"
-                               value="yes"
-                               <?= ($submittedAnswers[$questionId] ?? '') === 'yes' ? 'checked' : '' ?>
-                               required>
-                        Yes
-                    </label>
-                    <label>
-                        <input type="radio"
-                               name="eligibility_answers[<?= $questionId ?>]"
-                               value="no"
-                               <?= ($submittedAnswers[$questionId] ?? '') === 'no' ? 'checked' : '' ?>
-                               required>
-                        No
-                    </label>
-                <?php endforeach; ?>
-            </fieldset>
-        <?php endif; ?>
-
-        <p>
-            <label for="message">
-                Optional Message to Researcher:
-            </label>
-        </p>
-
-        <textarea
-            id="message"
-            name="message"
-            rows="5"
-            cols="50"
-            maxlength="1000"
-        ><?= e($message) ?></textarea>
-
-        <p>
-            <button type="submit">
-                Submit Application
-            </button>
-        </p>
-
-    </form>
-
-<?php endif; ?>
-
-<hr>
-
-<p>
-    <a href="my-applications.php">
-        View My Applications
-    </a>
-</p>
-
-<p>
-    <a href="my-invitations.php">
-        View My Research Invitations
-    </a>
-</p>
-
-<p>
-    <a href="volunteer-dashboard.php">
-        Back to Volunteer Dashboard
-    </a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
