@@ -91,233 +91,184 @@ foreach ($requests as $request) {
     }
 }
 
-?>
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        My Sent Invitations - Research Recruitment
-    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Sent Invitations | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/my-sent-requests.css">
 </head>
-
 <body>
-
-<h1>Research Recruitment</h1>
-
-<h2>My Sent Invitations</h2>
-
-<p>
-    Welcome,
-    <?= escapeSentRequest($user['first_name']) ?>!
-</p>
-
-<p>
-    View the participation invitations you have sent
-    to volunteers and track their responses.
-</p>
-
-<h3>Invitation Overview</h3>
-
-<p>
-    Total Invitations:
-    <?= $totalRequests ?>
-</p>
-
-<p>
-    Pending Invitations:
-    <?= $pendingRequests ?>
-</p>
-
-<p>
-    Accepted Invitations:
-    <?= $acceptedRequests ?>
-</p>
-
-<p>
-    Declined Invitations:
-    <?= $declinedRequests ?>
-</p>
-
-<hr>
-
-<h3>Sent Invitations</h3>
-
-<?php if (empty($requests)): ?>
-
-    <p>
-        You have not sent any research participation
-        invitations yet.
-    </p>
-
-    <p>
-        <a href="find-volunteers.php">
-            Find Volunteers
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="academic-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
         </a>
-    </p>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="academic-dashboard.php">Dashboard</a>
+            <a href="my-studies.php">My studies</a>
+            <a href="review-applications.php">Applications</a>
+            <a href="find-volunteers.php">Find volunteers</a>
+            <a href="my-sent-requests.php" aria-current="page">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= escapeSentRequest($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
+<main class="page-shell sent-page">
+    <section class="sent-hero">
+        <div>
+            <p class="eyebrow">YOUR RESEARCH WORKSPACE</p>
+            <h1>Track your sent invitations</h1>
+            <p>Welcome back, <?= escapeSentRequest($user['first_name']) ?>! Review invitations you have sent to volunteers and keep track of their responses.</p>
+        </div>
+        <a href="find-volunteers.php" class="btn btn--primary">Find volunteers</a>
+    </section>
 
-<?php else: ?>
+    <section class="sent-section" aria-labelledby="sent-overview-heading">
+        <div class="sent-section-head">
+            <div>
+                <p class="eyebrow">INVITATION OVERVIEW</p>
+                <h2 id="sent-overview-heading">Your invitations at a glance</h2>
+            </div>
+            <span class="sent-subtle"><?= $totalRequests ?> total invitations</span>
+        </div>
+        <div class="sent-stats">
+            <div class="sent-stat"><span>Total invitations</span><strong><?= $totalRequests ?></strong><small>Sent to volunteers</small></div>
+            <div class="sent-stat"><span>Pending</span><strong><?= $pendingRequests ?></strong><small>Awaiting volunteer responses</small></div>
+            <div class="sent-stat"><span>Accepted</span><strong><?= $acceptedRequests ?></strong><small>Invitations accepted</small></div>
+            <div class="sent-stat"><span>Declined</span><strong><?= $declinedRequests ?></strong><small>Invitations declined</small></div>
+        </div>
+    </section>
 
-    <?php foreach ($requests as $request): ?>
-
-        <h4>
-            <?= escapeSentRequest(
-                $request['study_title']
-            ) ?>
-        </h4>
-
-        <?php if ((int) $request['is_test'] === 1): ?>
-
-            <p>
-                <strong>FICTIONAL TEST STUDY</strong>
-                — No real recruitment or payment.
-            </p>
-
-        <?php endif; ?>
-
-        <p>
-            Invitation ID:
-            <?= (int) $request['request_id'] ?>
-        </p>
-
-        <p>
-            Study ID:
-            <?= (int) $request['study_id'] ?>
-        </p>
-
-        <p>
-            Research Topic:
-            <?= escapeSentRequest($request['topic']) ?>
-        </p>
-
-        <p>
-            Study Status:
-            <?= escapeSentRequest(
-                $request['study_status']
-            ) ?>
-        </p>
-
-        <h4>Volunteer Information</h4>
-
-        <p>Volunteer ID: <?= (int) $request['volunteer_id'] ?></p>
-
-        <?php if ($request['request_status'] === 'accepted'): ?>
-            <p>
-                Volunteer:
-                <?= escapeSentRequest($request['volunteer_first_name']) ?>
-                <?= escapeSentRequest($request['volunteer_last_name']) ?>
-            </p>
-            <p>Preferred contact method: <?= escapeSentRequest(ucfirst($request['contact_method'])) ?></p>
-            <?php if ($request['contact_method'] === 'phone'): ?>
-                <p>Phone: <?= escapeSentRequest($request['volunteer_phone'] ?: 'Not supplied') ?></p>
-            <?php else: ?>
-                <p>Email: <?= escapeSentRequest($request['volunteer_email']) ?></p>
-            <?php endif; ?>
+    <section class="sent-section" aria-labelledby="sent-history-heading">
+        <div class="sent-section-head">
+            <div>
+                <p class="eyebrow">INVITATION HISTORY</p>
+                <h2 id="sent-history-heading">Invitations to your studies</h2>
+            </div>
+            <span class="sent-subtle">Newest invitations first</span>
+        </div>
+        <?php if (empty($requests)): ?>
+            <div class="sent-empty">
+                <h3>No invitations sent yet</h3>
+                <p>You haven't invited any volunteers to participate in your research studies.</p>
+                <a href="find-volunteers.php" class="btn btn--primary">Find volunteers</a>
+            </div>
         <?php else: ?>
-            <p>Identity and contact details are private until the invitation is accepted.</p>
+            <div class="sent-card-grid">
+                <?php foreach ($requests as $request): ?>
+                    <?php
+                    $status = (string)$request['request_status'];
+                    $statusClass = in_array($status, ['pending', 'accepted', 'declined'], true)
+                        ? $status
+                        : 'other';
+                    $accepted = $status === 'accepted';
+                    $contactMethod = (string)($request['contact_method'] ?? 'email');
+                    ?>
+                    <article class="sent-card">
+                        <div class="sent-card-head">
+                            <div class="sent-tags">
+                                <span class="sent-tag"><?= escapeSentRequest($request['topic']) ?></span>
+                                <?php if ((int)$request['is_test'] === 1): ?>
+                                    <span class="sent-tag sent-tag-muted">Fictional test study</span>
+                                <?php endif; ?>
+                            </div>
+                            <span class="sent-status sent-status--<?= $statusClass ?>"><?= escapeSentRequest(ucfirst($status)) ?></span>
+                        </div>
+                        <h3><?= escapeSentRequest($request['study_title']) ?></h3>
+                        <p class="sent-reference">Invitation #<?= (int)$request['request_id'] ?> · Volunteer #<?= (int)$request['volunteer_id'] ?></p>
+
+                        <dl class="sent-facts">
+                            <div><dt>Study ID</dt><dd>#<?= (int)$request['study_id'] ?></dd></div>
+                            <div><dt>Study status</dt><dd><?= escapeSentRequest(ucfirst((string)$request['study_status'])) ?></dd></div>
+                            <div><dt>Sent at</dt><dd><?= escapeSentRequest($request['requested_at']) ?></dd></div>
+                            <?php if (!empty($request['responded_at'])): ?>
+                                <div><dt>Responded at</dt><dd><?= escapeSentRequest($request['responded_at']) ?></dd></div>
+                            <?php endif; ?>
+                        </dl>
+
+                        <?php if ((int)$request['is_test'] === 1): ?>
+                            <p class="sent-info">Fictional test study — no real recruitment or payment.</p>
+                        <?php endif; ?>
+
+                        <div class="sent-card-section">
+                            <h4>Volunteer information</h4>
+                            <?php if ($accepted): ?>
+                                <div class="sent-contact">
+                                    <strong>Volunteer contact details</strong>
+                                    <p><?= escapeSentRequest($request['volunteer_first_name']) ?> <?= escapeSentRequest($request['volunteer_last_name']) ?></p>
+                                    <p>Preferred contact: <?= escapeSentRequest(ucfirst($contactMethod)) ?></p>
+                                    <?php if ($contactMethod === 'phone'): ?>
+                                        <p>Phone: <?= escapeSentRequest($request['volunteer_phone'] ?: 'Not supplied') ?></p>
+                                    <?php else: ?>
+                                        <p>Email: <?= escapeSentRequest($request['volunteer_email'] ?: 'Not supplied') ?></p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else: ?>
+                                <p class="sent-private">Identity and contact details are private until the invitation is accepted.</p>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="sent-card-section">
+                            <h4>Invitation message</h4>
+                            <?php if (!$accepted): ?>
+                                <p>Invitation message hidden until acceptance.</p>
+                            <?php elseif (!empty($request['message'])): ?>
+                                <p class="sent-message"><?= escapeSentRequest($request['message']) ?></p>
+                            <?php else: ?>
+                                <p>No invitation message provided.</p>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="sent-response sent-response--<?= $statusClass ?>">
+                            <?php if ($status === 'pending'): ?>
+                                Awaiting a response from the volunteer.
+                            <?php elseif ($status === 'accepted'): ?>
+                                The volunteer has accepted your invitation.
+                            <?php elseif ($status === 'declined'): ?>
+                                The volunteer has declined your invitation.
+                            <?php else: ?>
+                                Current response: <?= escapeSentRequest($status) ?>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
+    </section>
 
-        <h4>Invitation Details</h4>
-
-        <p>
-            Invitation Sent:
-            <?= escapeSentRequest(
-                $request['requested_at']
-            ) ?>
-        </p>
-
-        <p>
-            Invitation Status:
-            <strong>
-                <?= escapeSentRequest(
-                    ucfirst($request['request_status'])
-                ) ?>
-            </strong>
-        </p>
-
-        <h4>Invitation Message</h4>
-
-        <?php if ($request['request_status'] !== 'accepted'): ?>
-
-            <p>Invitation message hidden until acceptance.</p>
-
-        <?php elseif (!empty($request['message'])): ?>
-
-            <p style="white-space: pre-wrap;"><?= escapeSentRequest(
-                $request['message']
-            ) ?></p>
-
-        <?php else: ?>
-
-            <p>No invitation message provided.</p>
-
-        <?php endif; ?>
-
-        <h4>Volunteer Response</h4>
-
-        <?php if ($request['request_status'] === 'pending'): ?>
-
-            <p>
-                Awaiting a response from the volunteer.
-            </p>
-
-        <?php elseif ($request['request_status'] === 'accepted'): ?>
-
-            <p>
-                The volunteer has accepted your invitation.
-            </p>
-
-        <?php elseif ($request['request_status'] === 'declined'): ?>
-
-            <p>
-                The volunteer has declined your invitation.
-            </p>
-
-        <?php else: ?>
-
-            <p>
-                Current response:
-                <?= escapeSentRequest(
-                    $request['request_status']
-                ) ?>
-            </p>
-
-        <?php endif; ?>
-
-        <?php if (!empty($request['responded_at'])): ?>
-
-            <p>
-                Responded At:
-                <?= escapeSentRequest(
-                    $request['responded_at']
-                ) ?>
-            </p>
-
-        <?php endif; ?>
-
-        <hr>
-
-    <?php endforeach; ?>
-
-<?php endif; ?>
-
-<p>
-    <a href="find-volunteers.php">
-        Find Volunteers
-    </a>
-</p>
-
-<p>
-    <a href="academic-dashboard.php">
-        Back to Academic Dashboard
-    </a>
-</p>
-
+    <aside class="sent-shortcuts">
+        <div>
+            <h2>Keep your recruitment organised</h2>
+            <p>Find more volunteers, manage your studies or return to your dashboard.</p>
+        </div>
+        <div class="sent-shortcut-links">
+            <a href="find-volunteers.php" class="btn sent-light-button">Find volunteers</a>
+            <a href="my-studies.php" class="btn sent-light-button">My studies</a>
+            <a href="academic-dashboard.php" class="btn sent-light-button">Dashboard</a>
+        </div>
+    </aside>
+</main>
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© <?= date('Y') ?> Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Site information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
