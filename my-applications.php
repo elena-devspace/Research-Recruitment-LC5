@@ -30,7 +30,6 @@ $error = '';
 $notice = $_SESSION['my_applications_notice'] ?? '';
 unset($_SESSION['my_applications_notice']);
 
-// Withdraw an existing application.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $token = $_POST['csrf_token'] ?? null;
@@ -57,9 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
 
-            // Only the applicant can withdraw.
-            // Pending and accepted applications
-            // can be withdrawn.
             $stmt = $pdo->prepare(
                 "UPDATE study_applications
                  SET status = 'withdrawn'
@@ -102,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch applications belonging to this volunteer.
 $stmt = $pdo->prepare(
     "SELECT
         a.application_id,
@@ -138,200 +133,219 @@ $stmt = $pdo->prepare(
 $stmt->execute([$volunteerId]);
 
 $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
 
+
+$statusCounts = [
+    'pending' => 0,
+    'accepted' => 0,
+    'rejected' => 0,
+    'withdrawn' => 0,
+];
+
+foreach ($applications as $application) {
+    $status = (string)$application['status'];
+    if (array_key_exists($status, $statusCounts)) {
+        $statusCounts[$status]++;
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>My Applications - Research Recruitment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Applications | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/my-applications.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-<h2>My Applications</h2>
-
-<p>
-    Welcome, <?= e($user['first_name']) ?>!
-</p>
-
-<p>
-    Total Applications: <?= count($applications) ?>
-</p>
-
-<?php if ($notice !== ''): ?>
-    <p role="status"><?= e($notice) ?></p>
-<?php endif; ?>
-
-<?php if ($error !== ''): ?>
-    <p role="alert"><?= e($error) ?></p>
-<?php endif; ?>
-
-<hr>
-
-<?php if (empty($applications)): ?>
-
-    <p>
-        You have not applied to any research studies yet.
-    </p>
-
-    <p>
-        <a href="browse-studies.php">
-            Browse Research Studies
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="volunteer-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
         </a>
-    </p>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="volunteer-dashboard.php">Dashboard</a>
+            <a href="browse-studies.php">Studies</a>
+            <a href="my-applications.php" aria-current="page">Applications</a>
+            <a href="my-invitations.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
 
-<?php else: ?>
+<main class="page-shell applications-page">
+    <section class="applications-hero" aria-labelledby="applications-page-title">
+        <div class="applications-hero__copy">
+            <span class="eyebrow">Your research journey</span>
+            <h1 id="applications-page-title">Track your applications</h1>
+            <p>Welcome back, <?= e($user['first_name']) ?>! Review your application decisions, messages and participation history in one place.</p>
+        </div>
+        <a class="btn btn--primary" href="browse-studies.php">Explore research studies</a>
+    </section>
 
-    <?php foreach ($applications as $application): ?>
+    <?php if ($notice !== ''): ?>
+        <div class="feedback feedback--success applications-feedback" role="status"><?= e($notice) ?></div>
+    <?php endif; ?>
 
-        <section>
+    <?php if ($error !== ''): ?>
+        <div class="feedback feedback--error applications-feedback" role="alert"><?= e($error) ?></div>
+    <?php endif; ?>
 
-            <h3>
-                <?= e($application['study_title']) ?>
-            </h3>
+    <section class="applications-overview" aria-labelledby="applications-overview-heading">
+        <div class="applications-section-header">
+            <div>
+                <span class="eyebrow">Application overview</span>
+                <h2 id="applications-overview-heading">Your progress at a glance</h2>
+            </div>
+            <p><?= count($applications) ?> total application<?= count($applications) === 1 ? '' : 's' ?></p>
+        </div>
+        <div class="applications-stats" aria-label="Application statuses">
+            <div class="applications-stat">
+                <span class="applications-stat__label">Pending</span>
+                <strong><?= $statusCounts['pending'] ?></strong>
+                <span class="applications-stat__description">Awaiting a decision</span>
+            </div>
+            <div class="applications-stat">
+                <span class="applications-stat__label">Accepted</span>
+                <strong><?= $statusCounts['accepted'] ?></strong>
+                <span class="applications-stat__description">Approved by researcher</span>
+            </div>
+            <div class="applications-stat">
+                <span class="applications-stat__label">Rejected</span>
+                <strong><?= $statusCounts['rejected'] ?></strong>
+                <span class="applications-stat__description">Not selected</span>
+            </div>
+            <div class="applications-stat">
+                <span class="applications-stat__label">Withdrawn</span>
+                <strong><?= $statusCounts['withdrawn'] ?></strong>
+                <span class="applications-stat__description">Withdrawn by you</span>
+            </div>
+        </div>
+    </section>
 
-            <?php if ($application['is_test']): ?>
-                <p>
-                    <strong>
-                        FICTIONAL TEST STUDY
-                    </strong>
-                </p>
-            <?php endif; ?>
+    <section class="applications-list" aria-labelledby="applications-list-heading">
+        <div class="applications-section-header">
+            <div>
+                <span class="eyebrow">Application history</span>
+                <h2 id="applications-list-heading">My research applications</h2>
+            </div>
+            <p>Newest applications appear first.</p>
+        </div>
 
-            <p>
-                Application ID:
-                <?= (int)$application['application_id'] ?>
-            </p>
+        <?php if (empty($applications)): ?>
+            <div class="applications-empty">
+                <div class="applications-empty__icon" aria-hidden="true">01</div>
+                <h3>No applications yet</h3>
+                <p>You have not applied to any research studies yet. Find a study that interests you to get started.</p>
+                <a class="btn btn--primary" href="browse-studies.php">Browse research studies</a>
+            </div>
+        <?php else: ?>
+            <div class="applications-grid">
+                <?php foreach ($applications as $application): ?>
+                    <?php
+                        $applicationStatus = (string)$application['status'];
+                        $statusClass = in_array($applicationStatus, ['pending', 'accepted', 'rejected', 'withdrawn'], true)
+                            ? $applicationStatus
+                            : 'unknown';
+                    ?>
+                    <article class="application-card" aria-labelledby="application-title-<?= (int)$application['application_id'] ?>">
+                        <div class="application-card__badges">
+                            <span class="application-card__topic"><?= e($application['topic']) ?></span>
+                            <?php if ((int)$application['is_test'] === 1): ?>
+                                <span class="application-card__tag">Fictional test study</span>
+                            <?php endif; ?>
+                            <span class="application-card__status application-card__status--<?= $statusClass ?>">
+                                <?= e(ucfirst($applicationStatus)) ?>
+                            </span>
+                        </div>
+                        <h3 id="application-title-<?= (int)$application['application_id'] ?>"><?= e($application['study_title']) ?></h3>
+                        <p class="application-card__researcher">By <?= e(trim($application['researcher_first_name'] . ' ' . $application['researcher_last_name'])) ?></p>
 
-            <p>
-                Topic:
-                <?= e($application['topic']) ?>
-            </p>
+                        <dl class="application-card__details">
+                            <div>
+                                <dt>Application ID</dt>
+                                <dd>#<?= (int)$application['application_id'] ?></dd>
+                            </div>
+                            <div>
+                                <dt>Study status</dt>
+                                <dd><?= e(ucfirst($application['study_status'])) ?></dd>
+                            </div>
+                            <div>
+                                <dt>Applied at</dt>
+                                <dd><?= e($application['applied_at']) ?></dd>
+                            </div>
+                            <?php if ($application['reviewed_at']): ?>
+                                <div>
+                                    <dt>Reviewed at</dt>
+                                    <dd><?= e($application['reviewed_at']) ?></dd>
+                                </div>
+                            <?php endif; ?>
+                        </dl>
 
-            <p>
-                Researcher:
-                <?= e($application['researcher_first_name']) ?>
-                <?= e($application['researcher_last_name']) ?>
-            </p>
+                        <div class="application-card__decision application-card__decision--<?= $statusClass ?>">
+                            <?php if ($applicationStatus === 'pending'): ?>
+                                Your application is awaiting review.
+                            <?php elseif ($applicationStatus === 'accepted'): ?>
+                                Your application has been accepted by the researcher.
+                            <?php elseif ($applicationStatus === 'rejected'): ?>
+                                Your application was not accepted.
+                            <?php elseif ($applicationStatus === 'withdrawn'): ?>
+                                You have withdrawn this application.
+                            <?php else: ?>
+                                Check back for your latest application status.
+                            <?php endif; ?>
+                        </div>
 
-            <p>
-                Study Status:
-                <?= e($application['study_status']) ?>
-            </p>
+                        <div class="application-card__message">
+                            <h4>Your application message</h4>
+                            <p><?= nl2br(e($application['message'] ?: 'No message provided.')) ?></p>
+                        </div>
 
-            <p>
-                Applied At:
-                <?= e($application['applied_at']) ?>
-            </p>
+                        <?php if (in_array($applicationStatus, ['pending', 'accepted'], true)): ?>
+                            <form
+                                method="post"
+                                action="my-applications.php"
+                                class="application-card__actions"
+                                onsubmit="return confirm('Are you sure you want to withdraw this application?');"
+                            >
+                                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                                <input type="hidden" name="application_id" value="<?= (int)$application['application_id'] ?>">
+                                <button type="submit" class="application-card__withdraw">Withdraw application</button>
+                            </form>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
 
-            <p>
-                Application Status:
-                <strong>
-                    <?= e(ucfirst($application['status'])) ?>
-                </strong>
-            </p>
+    <section class="applications-shortcuts" aria-label="More volunteer actions">
+        <div>
+            <h2>Continue your research journey</h2>
+            <p>Explore other studies, check your invitations or return to your dashboard.</p>
+        </div>
+        <div class="applications-shortcuts__links">
+            <a class="btn applications-btn--light" href="browse-studies.php">Browse studies</a>
+            <a class="btn applications-btn--light" href="my-invitations.php">My invitations</a>
+            <a class="btn applications-btn--light" href="volunteer-dashboard.php">Dashboard</a>
+        </div>
+    </section>
+</main>
 
-            <?php if ($application['reviewed_at']): ?>
-                <p>
-                    Reviewed At:
-                    <?= e($application['reviewed_at']) ?>
-                </p>
-            <?php endif; ?>
-
-            <h4>Your Application Message</h4>
-
-            <p>
-                <?= nl2br(e(
-                    $application['message']
-                    ?: 'No message provided.'
-                )) ?>
-            </p>
-
-            <?php if ($application['status'] === 'pending'): ?>
-
-                <p>
-                    Your application is awaiting review.
-                </p>
-
-            <?php elseif ($application['status'] === 'accepted'): ?>
-
-                <p>
-                    Your application has been accepted
-                    by the researcher.
-                </p>
-
-            <?php elseif ($application['status'] === 'rejected'): ?>
-
-                <p>
-                    Your application was not accepted.
-                </p>
-
-            <?php elseif ($application['status'] === 'withdrawn'): ?>
-
-                <p>
-                    You have withdrawn this application.
-                </p>
-
-            <?php endif; ?>
-
-            <?php if (in_array(
-                $application['status'],
-                ['pending', 'accepted'],
-                true
-            )): ?>
-
-                <h4>Withdraw Application</h4>
-
-                <form
-                    method="post"
-                    action="my-applications.php"
-                    onsubmit="return confirm(
-                        'Are you sure you want to withdraw this application?'
-                    );"
-                >
-
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?= e($_SESSION['csrf_token']) ?>"
-                    >
-
-                    <input
-                        type="hidden"
-                        name="application_id"
-                        value="<?= (int)$application['application_id'] ?>"
-                    >
-
-                    <button type="submit">
-                        Withdraw Application
-                    </button>
-
-                </form>
-
-            <?php endif; ?>
-
-        </section>
-
-        <hr>
-
-    <?php endforeach; ?>
-
-<?php endif; ?>
-
-<p>
-    <a href="browse-studies.php">
-        Browse Research Studies
-    </a>
-</p>
-
-<p>
-    <a href="volunteer-dashboard.php">
-        Back to Volunteer Dashboard
-    </a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
