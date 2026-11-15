@@ -4,7 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/study-capacity.php';
 
-// Only volunteers can access this page.
 requireRole('volunteer');
 
 $user = currentUser();
@@ -12,7 +11,6 @@ $pdo = getConnection();
 
 $volunteerId = (int) $user['user_id'];
 
-// Safely display database values.
 function escapeInvitation($value): string
 {
     return htmlspecialchars(
@@ -22,7 +20,6 @@ function escapeInvitation($value): string
     );
 }
 
-// Create a CSRF token for responding to invitations.
 if (!isset($_SESSION['invitation_csrf'])) {
     $_SESSION['invitation_csrf'] = bin2hex(random_bytes(32));
 }
@@ -30,13 +27,11 @@ if (!isset($_SESSION['invitation_csrf'])) {
 $error = '';
 $success = '';
 
-// Display a success message after redirect.
 if (isset($_SESSION['invitation_success'])) {
     $success = (string) $_SESSION['invitation_success'];
     unset($_SESSION['invitation_success']);
 }
 
-// Handle accepting or declining an invitation.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $token = $_POST['csrf_token'] ?? '';
@@ -142,7 +137,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Retrieve invitations for this volunteer only.
 $stmt = $pdo->prepare("
     SELECT
         pr.request_id,
@@ -195,242 +189,236 @@ foreach ($invitations as $invitation) {
     }
 }
 
-?>
+$statusCounts = [
+    'pending' => 0,
+    'accepted' => 0,
+    'declined' => 0,
+];
+foreach ($invitations as $invitation) {
+    $status = (string)$invitation['request_status'];
+    if (isset($statusCounts[$status])) {
+        $statusCounts[$status]++;
+    }
+}
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-    <title>My Invitations - Research Recruitment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Invitations | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/my-invitations.css">
 </head>
-
 <body>
-
-<h1>Research Recruitment</h1>
-
-<h2>My Research Invitations</h2>
-
-<p>
-    Welcome,
-    <?= escapeInvitation($user['first_name']) ?>!
-</p>
-
-<p>
-    View invitations from academic researchers
-    and respond to participation requests.
-</p>
-
-<?php if ($success !== ''): ?>
-    <p><?= escapeInvitation($success) ?></p>
-<?php endif; ?>
-
-<?php if ($error !== ''): ?>
-    <p><?= escapeInvitation($error) ?></p>
-<?php endif; ?>
-
-<h3>Invitation Overview</h3>
-
-<p>
-    Total Invitations: <?= count($invitations) ?>
-</p>
-
-<p>
-    Pending Invitations: <?= $pendingCount ?>
-</p>
-
-<hr>
-
-<h3>Received Invitations</h3>
-
-<?php if (empty($invitations)): ?>
-
-    <p>
-        You have not received any research
-        participation invitations yet.
-    </p>
-
-<?php else: ?>
-
-    <?php foreach ($invitations as $invitation): ?>
-
-        <h4>
-            <?= escapeInvitation($invitation['title']) ?>
-        </h4>
-
-        <?php if ((int) $invitation['is_test'] === 1): ?>
-
-            <p>
-                <strong>FICTIONAL TEST STUDY</strong>
-                — No real participation or payment.
-            </p>
-
-        <?php endif; ?>
-
-        <p>
-            Invitation ID:
-            <?= (int) $invitation['request_id'] ?>
-        </p>
-
-        <p>
-            Research Topic:
-            <?= escapeInvitation($invitation['topic']) ?>
-        </p>
-
-        <p>
-            Researcher:
-            <?= escapeInvitation(
-                $invitation['researcher_first_name']
-            ) ?>
-            <?= escapeInvitation(
-                $invitation['researcher_last_name']
-            ) ?>
-        </p>
-
-        <p>
-            Study Status:
-            <?= escapeInvitation(
-                $invitation['study_status']
-            ) ?>
-        </p>
-
-        <p>
-            Invitation Sent:
-            <?= escapeInvitation(
-                $invitation['requested_at']
-            ) ?>
-        </p>
-
-        <?php $capacity = $capacityByStudy[(int)$invitation['study_id']]; ?>
-        <p>
-            Spaces remaining:
-            <?= $capacity['remaining'] === null
-                ? 'No limit set'
-                : $capacity['remaining'] . ' of ' . $capacity['capacity'] ?>
-        </p>
-
-        <p>
-            Invitation Status:
-            <strong>
-                <?= escapeInvitation(
-                    ucfirst($invitation['request_status'])
-                ) ?>
-            </strong>
-        </p>
-
-        <h4>Message from Researcher</h4>
-
-        <p>
-            <?php if (
-                !empty($invitation['message'])
-            ): ?>
-
-                <?= nl2br(
-                    escapeInvitation($invitation['message'])
-                ) ?>
-
-            <?php else: ?>
-
-                No message provided.
-
-            <?php endif; ?>
-        </p>
-
-        <?php if (
-            $invitation['request_status'] === 'pending'
-        ): ?>
-
-            <h4>Respond to Invitation</h4>
-
-            <?php if (
-                $invitation['study_status'] !== 'open'
-            ): ?>
-
-                <p>
-                    This study is no longer open.
-                    You cannot accept this invitation.
-                </p>
-
-            <?php endif; ?>
-
-            <form method="POST">
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= escapeInvitation(
-                        $_SESSION['invitation_csrf']
-                    ) ?>"
-                >
-
-                <input
-                    type="hidden"
-                    name="request_id"
-                    value="<?= (int) $invitation['request_id'] ?>"
-                >
-
-                <?php if (
-                    $invitation['study_status'] === 'open' &&
-                    ($capacity['remaining'] === null || $capacity['remaining'] > 0)
-                ): ?>
-
-                    <button
-                        type="submit"
-                        name="decision"
-                        value="accepted"
-                    >
-                        Accept Invitation
-                    </button>
-
-                <?php elseif ($invitation['study_status'] === 'open'): ?>
-                    <p>This study is full. You cannot accept this invitation.</p>
-                <?php endif; ?>
-
-                <button
-                    type="submit"
-                    name="decision"
-                    value="declined"
-                >
-                    Decline Invitation
-                </button>
-
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="volunteer-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="volunteer-dashboard.php">Dashboard</a>
+            <a href="browse-studies.php">Studies</a>
+            <a href="my-applications.php">Applications</a>
+            <a href="my-invitations.php" aria-current="page">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= escapeInvitation($_SESSION['csrf_token']) ?>">
+                <button type="submit" class="dashboard-logout__button">Log out</button>
             </form>
+        </nav>
+    </div>
+</header>
 
+<main class="page-shell invitations-page">
+    <section class="invitations-hero" aria-labelledby="invitations-title">
+        <div class="invitations-hero__copy">
+            <span class="eyebrow">Your research journey</span>
+            <h1 id="invitations-title">Manage your invitations</h1>
+            <p>Welcome back, <?= escapeInvitation($user['first_name']) ?>! Review research invitations and decide which opportunities are right for you.</p>
+        </div>
+        <a href="browse-studies.php" class="btn btn--primary">Explore research studies</a>
+    </section>
+
+    <?php if ($success !== ''): ?>
+        <div class="feedback feedback--success invitations-feedback" role="status"><?= escapeInvitation($success) ?></div>
+    <?php endif; ?>
+    <?php if ($error !== ''): ?>
+        <div class="feedback feedback--error invitations-feedback" role="alert"><?= escapeInvitation($error) ?></div>
+    <?php endif; ?>
+
+    <section class="invitations-overview" aria-labelledby="invitations-overview-title">
+        <div class="invitations-section-header">
+            <div>
+                <span class="eyebrow">Invitation overview</span>
+                <h2 id="invitations-overview-title">Your invitations at a glance</h2>
+            </div>
+            <p><?= count($invitations) ?> total invitation<?= count($invitations) === 1 ? '' : 's' ?></p>
+        </div>
+        <div class="invitations-stats" aria-label="Invitation status counts">
+            <div class="invitations-stat">
+                <span class="invitations-stat__label">Total invitations</span>
+                <strong><?= count($invitations) ?></strong>
+                <span class="invitations-stat__description">Received from researchers</span>
+            </div>
+            <div class="invitations-stat">
+                <span class="invitations-stat__label">Pending</span>
+                <strong><?= $statusCounts['pending'] ?></strong>
+                <span class="invitations-stat__description">Awaiting your response</span>
+            </div>
+            <div class="invitations-stat">
+                <span class="invitations-stat__label">Accepted</span>
+                <strong><?= $statusCounts['accepted'] ?></strong>
+                <span class="invitations-stat__description">Invitations you accepted</span>
+            </div>
+            <div class="invitations-stat">
+                <span class="invitations-stat__label">Declined</span>
+                <strong><?= $statusCounts['declined'] ?></strong>
+                <span class="invitations-stat__description">Invitations you declined</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="invitations-list" aria-labelledby="received-invitations-title">
+        <div class="invitations-section-header">
+            <div>
+                <span class="eyebrow">Invitation history</span>
+                <h2 id="received-invitations-title">My research invitations</h2>
+            </div>
+            <p>Pending invitations appear first.</p>
+        </div>
+
+        <?php if (empty($invitations)): ?>
+            <div class="invitations-empty">
+                <span class="invitations-empty__icon" aria-hidden="true">01</span>
+                <h3>No invitations yet</h3>
+                <p>When an academic researcher invites you to participate in a study, you will see it here.</p>
+                <a href="browse-studies.php" class="btn btn--primary">Browse research studies</a>
+            </div>
         <?php else: ?>
+            <div class="invitations-grid">
+                <?php foreach ($invitations as $invitation): ?>
+                    <?php
+                        $status = (string)$invitation['request_status'];
+                        $statusClass = in_array($status, ['pending', 'accepted', 'declined'], true)
+                            ? $status
+                            : 'unknown';
+                        $capacity = $capacityByStudy[(int)$invitation['study_id']];
+                        $canAccept = $status === 'pending'
+                            && $invitation['study_status'] === 'open'
+                            && ($capacity['remaining'] === null || $capacity['remaining'] > 0);
+                    ?>
+                    <article class="invitation-card" aria-labelledby="invitation-title-<?= (int)$invitation['request_id'] ?>">
+                        <div class="invitation-card__badges">
+                            <span class="invitation-card__topic"><?= escapeInvitation($invitation['topic']) ?></span>
+                            <?php if ((int)$invitation['is_test'] === 1): ?>
+                                <span class="invitation-card__tag">Fictional test study</span>
+                            <?php endif; ?>
+                            <span class="invitation-card__status invitation-card__status--<?= $statusClass ?>">
+                                <?= escapeInvitation(ucfirst($status)) ?>
+                            </span>
+                        </div>
 
-            <p>
-                This invitation has already been answered.
-            </p>
+                        <h3 id="invitation-title-<?= (int)$invitation['request_id'] ?>"><?= escapeInvitation($invitation['title']) ?></h3>
+                        <p class="invitation-card__researcher">Invited by <?= escapeInvitation(trim($invitation['researcher_first_name'] . ' ' . $invitation['researcher_last_name'])) ?></p>
 
-            <?php if (
-                !empty($invitation['responded_at'])
-            ): ?>
+                        <dl class="invitation-card__details">
+                            <div>
+                                <dt>Invitation ID</dt>
+                                <dd>#<?= (int)$invitation['request_id'] ?></dd>
+                            </div>
+                            <div>
+                                <dt>Study status</dt>
+                                <dd><?= escapeInvitation(ucfirst($invitation['study_status'])) ?></dd>
+                            </div>
+                            <div>
+                                <dt>Sent at</dt>
+                                <dd><?= escapeInvitation($invitation['requested_at']) ?></dd>
+                            </div>
+                            <div>
+                                <dt>Spaces remaining</dt>
+                                <dd><?= $capacity['remaining'] === null
+                                    ? 'No limit set'
+                                    : (int)$capacity['remaining'] . ' of ' . (int)$capacity['capacity'] ?></dd>
+                            </div>
+                            <?php if ($status !== 'pending' && !empty($invitation['responded_at'])): ?>
+                                <div>
+                                    <dt>Responded at</dt>
+                                    <dd><?= escapeInvitation($invitation['responded_at']) ?></dd>
+                                </div>
+                            <?php endif; ?>
+                        </dl>
 
-                <p>
-                    Responded At:
-                    <?= escapeInvitation(
-                        $invitation['responded_at']
-                    ) ?>
-                </p>
+                        <?php if ((int)$invitation['is_test'] === 1): ?>
+                            <p class="invitation-card__test-notice">Fictional test study — no real participation or payment.</p>
+                        <?php endif; ?>
 
-            <?php endif; ?>
+                        <div class="invitation-card__message">
+                            <h4>Message from researcher</h4>
+                            <p><?= nl2br(escapeInvitation($invitation['message'] ?: 'No message provided.')) ?></p>
+                        </div>
 
+                        <?php if ($status === 'pending'): ?>
+                            <div class="invitation-card__actions">
+                                <h4>Respond to invitation</h4>
+                                <?php if ($invitation['study_status'] !== 'open'): ?>
+                                    <p class="invitation-card__warning">This study is no longer open. You cannot accept this invitation.</p>
+                                <?php elseif ($capacity['remaining'] !== null && $capacity['remaining'] < 1): ?>
+                                    <p class="invitation-card__warning">This study is full. You cannot accept this invitation.</p>
+                                <?php endif; ?>
+                                <form method="post" action="my-invitations.php" class="invitation-card__form">
+                                    <input type="hidden" name="csrf_token" value="<?= escapeInvitation($_SESSION['invitation_csrf']) ?>">
+                                    <input type="hidden" name="request_id" value="<?= (int)$invitation['request_id'] ?>">
+                                    <?php if ($canAccept): ?>
+                                        <button type="submit" name="decision" value="accepted" class="btn btn--primary invitation-card__accept">Accept invitation</button>
+                                    <?php endif; ?>
+                                    <button type="submit" name="decision" value="declined" class="invitation-card__decline">Decline invitation</button>
+                                </form>
+                            </div>
+                        <?php else: ?>
+                            <div class="invitation-card__decision invitation-card__decision--<?= $statusClass ?>">
+                                <?= $status === 'accepted'
+                                    ? 'You have accepted this invitation.'
+                                    : ($status === 'declined'
+                                        ? 'You have declined this invitation.'
+                                        : 'This invitation has already been answered.') ?>
+                            </div>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
+    </section>
 
-        <hr>
+    <section class="invitations-shortcuts" aria-label="More volunteer actions">
+        <div>
+            <h2>Continue your research journey</h2>
+            <p>Browse studies, review your applications or return to your dashboard.</p>
+        </div>
+        <div class="invitations-shortcuts__links">
+            <a href="browse-studies.php" class="btn invitations-btn--light">Browse studies</a>
+            <a href="my-applications.php" class="btn invitations-btn--light">My applications</a>
+            <a href="volunteer-dashboard.php" class="btn invitations-btn--light">Dashboard</a>
+        </div>
+    </section>
+</main>
 
-    <?php endforeach; ?>
-
-<?php endif; ?>
-
-<p>
-    <a href="volunteer-dashboard.php">
-        Back to Volunteer Dashboard
-    </a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span>
+            <span>Contact</span>
+            <span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
