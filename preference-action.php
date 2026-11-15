@@ -32,7 +32,7 @@ if (!is_string($kind) || !in_array($kind, ['study', 'volunteer'], true)
 }
 
 $allowedPages = $kind === 'study'
-    ? ['browse-studies.php', 'test-studies.php']
+    ? ['browse-studies.php']
     : ['find-volunteers.php'];
 if (!in_array($page, $allowedPages, true)) {
     http_response_code(400);
