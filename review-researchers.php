@@ -135,133 +135,111 @@ $stmt = $pdo->query(
 
 $researchers = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>Review Researchers</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Researchers | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/study-confirmation.css">
+    <link rel="stylesheet" href="assets/css/review-researchers.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-<h2>Researcher Verification</h2>
-
-<p>Administrator: <?= e($user['first_name']) ?></p>
-
-<p>
-    Review researcher information before approving
-    access to publication features.
-</p>
-
-<p>
-    Institutional details supplied by users
-    must be checked independently.
-</p>
-
-<?php if ($message !== ''): ?>
-    <p role="status"><?= e($message) ?></p>
-<?php endif; ?>
-
-<?php if ($error !== ''): ?>
-    <p role="alert"><?= e($error) ?></p>
-<?php endif; ?>
-
-<h3>Pending Researchers</h3>
-
-<p>
-    Awaiting review: <?= count($researchers) ?>
-</p>
-
-<?php if (empty($researchers)): ?>
-
-    <p>No researchers are awaiting verification.</p>
-
-<?php else: ?>
-
-    <?php foreach ($researchers as $researcher): ?>
-
-        <section>
-
-            <h3>
-                <?= e($researcher['first_name']) ?>
-                <?= e($researcher['last_name']) ?>
-            </h3>
-
-            <p>
-                User ID:
-                <?= (int)$researcher['user_id'] ?>
-            </p>
-
-            <p>
-                Email:
-                <?= e($researcher['email']) ?>
-            </p>
-
-            <p>
-                Institution:
-                <?= e($researcher['institution']) ?>
-            </p>
-
-            <p>
-                Department:
-                <?= e($researcher['department']) ?>
-            </p>
-
-            <p>
-                Research interests:
-                <?= e($researcher['research_interests']) ?>
-            </p>
-
-            <p>
-                Status:
-                <?= e($researcher['verification_status']) ?>
-            </p>
-
-            <form method="post"
-                  action="review-researchers.php">
-
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="<?= e($_SESSION['csrf_token']) ?>"
-                >
-
-                <input
-                    type="hidden"
-                    name="researcher_id"
-                    value="<?= (int)$researcher['user_id'] ?>"
-                >
-
-                <button type="submit"
-                        name="decision"
-                        value="verified">
-                    Approve Researcher
-                </button>
-
-                <button type="submit"
-                        name="decision"
-                        value="rejected">
-                    Reject Researcher
-                </button>
-
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="admin-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="admin-dashboard.php">Dashboard</a>
+            <a href="review-researchers.php" aria-current="page">Researcher verification</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button class="dashboard-logout__button" type="submit">Log out</button>
             </form>
+        </nav>
+    </div>
+</header>
+<main class="page-shell finish-page">
+    <section class="finish-hero" aria-labelledby="verify-title">
+        <div>
+            <span class="eyebrow">Administrator workspace</span>
+            <h1 id="verify-title">Researcher verification</h1>
+            <p>Welcome, <?= e($user['first_name']) ?>. Review academic researcher accounts before granting access to publication and recruitment features.</p>
+        </div>
+        <a class="btn btn--primary" href="admin-dashboard.php">Admin dashboard</a>
+    </section>
 
-        </section>
+    <?php if ($message !== ''): ?>
+        <div class="feedback feedback--success finish-feedback" role="status"><?= e($message) ?></div>
+    <?php endif; ?>
+    <?php if ($error !== ''): ?>
+        <div class="feedback feedback--error finish-feedback" role="alert"><?= e($error) ?></div>
+    <?php endif; ?>
 
-        <hr>
+    <section class="finish-overview" aria-labelledby="verify-overview-title">
+        <div class="finish-section-heading">
+            <div>
+                <span class="eyebrow">Verification overview</span>
+                <h2 id="verify-overview-title">Pending account reviews</h2>
+            </div>
+            <div class="finish-count"><strong><?= count($researchers) ?></strong><span>Awaiting review</span></div>
+        </div>
+        <p class="finish-info">Institution and department information is self-reported. Verify these details independently before approving a researcher account.</p>
+    </section>
 
-    <?php endforeach; ?>
+    <section class="finish-section" aria-labelledby="pending-title">
+        <div class="finish-section-heading">
+            <div>
+                <span class="eyebrow">Pending researchers</span>
+                <h2 id="pending-title">Review researcher details</h2>
+            </div>
+            <p>Only pending accounts appear here.</p>
+        </div>
 
-<?php endif; ?>
-
-<p>
-    <a href="admin-dashboard.php">
-        Back to Administrator Dashboard
-    </a>
-</p>
-
+        <?php if (empty($researchers)): ?>
+            <div class="finish-empty">
+                <h3>All caught up!</h3>
+                <p>No researcher accounts are currently awaiting verification.</p>
+                <a class="btn btn--primary" href="admin-dashboard.php">Return to dashboard</a>
+            </div>
+        <?php else: ?>
+            <div class="finish-researcher-grid">
+                <?php foreach ($researchers as $researcher): ?>
+                    <article class="finish-researcher-card">
+                        <div class="finish-card-top">
+                            <span class="finish-chip">Researcher #<?= (int)$researcher['user_id'] ?></span>
+                            <span class="finish-pill finish-pill--pending">Pending verification</span>
+                        </div>
+                        <h3><?= e($researcher['first_name']) ?> <?= e($researcher['last_name']) ?></h3>
+                        <dl class="finish-details">
+                            <div><dt>Email address</dt><dd><?= e($researcher['email']) ?></dd></div>
+                            <div><dt>Institution</dt><dd><?= e($researcher['institution'] ?: 'Not provided') ?></dd></div>
+                            <div><dt>Department</dt><dd><?= e($researcher['department'] ?: 'Not provided') ?></dd></div>
+                            <div><dt>Research interests</dt><dd><?= e($researcher['research_interests'] ?: 'Not provided') ?></dd></div>
+                        </dl>
+                        <form class="finish-review-actions" method="post" action="review-researchers.php">
+                            <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="researcher_id" value="<?= (int)$researcher['user_id'] ?>">
+                            <button class="btn btn--primary" type="submit" name="decision" value="verified">Approve researcher</button>
+                            <button class="btn finish-btn--danger-outline" type="submit" name="decision" value="rejected">Reject researcher</button>
+                        </form>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
+</main>
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
