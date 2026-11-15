@@ -347,251 +347,293 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>Edit Research Study</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Research Study | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/edit-study.css">
 </head>
 <body>
-
-<h1>Research Recruitment</h1>
-<h2>Edit Research Study #<?= (int)$studyId ?></h2>
-
-<p>Researcher: <?= e($user['first_name']) ?></p>
-<p>Status: <?= e($study['status']) ?></p>
-
-<?php if ($updated): ?>
-    <p role="status">Study updated successfully!</p>
-<?php endif; ?>
-
-<?php if ($errors): ?>
-    <div role="alert">
-        <h3>Please correct the following:</h3>
-        <ul>
-            <?php foreach ($errors as $error): ?>
-                <li><?= e($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="academic-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="academic-dashboard.php">Dashboard</a>
+            <a href="my-studies.php" aria-current="page">My studies</a>
+            <a href="review-applications.php">Applications</a>
+            <a href="find-volunteers.php">Find volunteers</a>
+            <a href="my-sent-requests.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button class="dashboard-logout__button" type="submit">Log out</button>
+            </form>
+        </nav>
     </div>
-<?php endif; ?>
+</header>
 
-<form method="post"
-      action="edit-study.php?id=<?= (int)$studyId ?>">
+<main class="page-shell edit-page">
+    <a class="edit-back" href="my-studies.php">&larr; Back to my research studies</a>
 
-    <input type="hidden"
-           name="csrf_token"
-           value="<?= e($_SESSION['csrf_token']) ?>">
+    <section class="edit-hero" aria-labelledby="edit-title">
+        <div>
+            <span class="eyebrow">Your research workspace</span>
+            <h1 id="edit-title">Edit research study #<?= (int)$studyId ?></h1>
+            <p>Welcome back, <?= e($user['first_name']) ?>! Review and update your saved draft before publishing.</p>
+        </div>
+        <span class="edit-hero__pill">Draft study</span>
+    </section>
 
-    <?php
-    $textFields = [
-        'title' => ['Study Title', 255],
-        'topic' => ['Research Topic', 150],
-        'location' => ['Location', 150],
-        'reimbursement_details' => ['Reimbursement Details', 255]
-    ];
+    <?php if ($updated): ?>
+        <div class="feedback feedback--success edit-feedback" role="status">
+            <strong>Study #<?= (int)$studyId ?> updated successfully!</strong>
+            <p>Your changes have been saved. This study remains a draft until you publish it.</p>
+            <a href="my-studies.php">View my research studies</a>
+        </div>
+    <?php endif; ?>
 
-    foreach ($textFields as $field => [$label, $max]):
-    ?>
-        <p>
-            <label for="<?= e($field) ?>">
-                <?= e($label) ?>:
+    <?php if (!empty($errors)): ?>
+        <div class="feedback feedback--error edit-feedback" role="alert">
+            <h2>Please correct the following</h2>
+            <ul>
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <div class="edit-heading">
+        <div>
+            <span class="eyebrow">Edit draft</span>
+            <h2>Update your research details</h2>
+        </div>
+        <p>Required fields are marked with an asterisk (*).</p>
+    </div>
+
+    <form method="post" action="edit-study.php?id=<?= (int)$studyId ?>" class="edit-form">
+        <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+
+        <section class="edit-card" aria-labelledby="edit-basics-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">01</span>
+                <div><h3 id="edit-basics-title">Study basics</h3><p>Start with a clear title and research topic.</p></div>
+            </div>
+            <div class="edit-fields edit-fields--two">
+                <div class="edit-field">
+                    <label for="title">Study title <span aria-hidden="true">*</span></label>
+                    <input type="text" id="title" name="title" maxlength="255" required
+                           placeholder="e.g. Student Study Habits" value="<?= e($study['title']) ?>">
+                </div>
+                <div class="edit-field">
+                    <label for="topic">Research topic <span aria-hidden="true">*</span></label>
+                    <input type="text" id="topic" name="topic" maxlength="150" required
+                           placeholder="e.g. Education, Health or Technology" value="<?= e($study['topic']) ?>">
+                </div>
+            </div>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-details-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">02</span>
+                <div><h3 id="edit-details-title">Research information</h3><p>Explain the study and what participation involves.</p></div>
+            </div>
+            <div class="edit-fields edit-fields--two">
+                <?php
+                $textareas = [
+                    'aim' => ['Research aim', 'What do you want to investigate?'],
+                    'description' => ['Study description', 'Describe the purpose of your study.'],
+                    'participation_tasks' => ['Participant tasks', 'What will participants be asked to do?'],
+                    'eligibility_requirements' => ['Eligibility requirements', 'Who can take part in your study?']
+                ];
+                foreach ($textareas as $field => $fieldInfo):
+                ?>
+                    <div class="edit-field">
+                        <label for="<?= e($field) ?>"><?= e($fieldInfo[0]) ?> <span aria-hidden="true">*</span></label>
+                        <textarea id="<?= e($field) ?>" name="<?= e($field) ?>" rows="5"
+                                  maxlength="10000" placeholder="<?= e($fieldInfo[1]) ?>" required><?= e($study[$field]) ?></textarea>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-screening-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">03</span>
+                <div><h3 id="edit-screening-title">Eligibility screening</h3><p>Optional Yes/No questions for prospective participants.</p></div>
+            </div>
+            <fieldset class="edit-fieldset">
+                <legend>Screening questions (optional)</legend>
+                <p class="edit-help">Add up to five questions and select the answer required to qualify. Leave unused questions blank.</p>
+                <div class="edit-screening-list">
+                    <?php foreach ($eligibilityRows as $index => $row): ?>
+                        <div class="edit-screening-row">
+                            <span class="edit-screening-row__number"><?= $index + 1 ?></span>
+                            <div class="edit-field">
+                                <label for="eligibility_question_<?= $index ?>">Question <?= $index + 1 ?></label>
+                                <input type="text" id="eligibility_question_<?= $index ?>"
+                                       name="eligibility_questions[<?= $index ?>]" maxlength="255"
+                                       placeholder="e.g. Are you aged 18 or over?"
+                                       value="<?= e($row['question_text']) ?>">
+                            </div>
+                            <div class="edit-field">
+                                <label for="eligibility_answer_<?= $index ?>">Required answer</label>
+                                <select id="eligibility_answer_<?= $index ?>" name="eligibility_answers[<?= $index ?>]">
+                                    <option value="yes" <?= $row['required_answer'] === 'yes' ? 'selected' : '' ?>>Yes</option>
+                                    <option value="no" <?= $row['required_answer'] === 'no' ? 'selected' : '' ?>>No</option>
+                                </select>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-participants-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">04</span>
+                <div><h3 id="edit-participants-title">Participant requirements</h3><p>Set capacity and preferences used for volunteer matching.</p></div>
+            </div>
+            <div class="edit-fields edit-fields--two">
+                <div class="edit-field">
+                    <label for="participant_capacity">Participant capacity <span class="edit-optional">(optional)</span></label>
+                    <input type="number" id="participant_capacity" name="participant_capacity" min="1" max="10000" step="1"
+                           placeholder="Leave blank for no limit" value="<?= e($study['participant_capacity']) ?>">
+                    <p class="edit-help">Up to 10,000 participants. Leave blank if there is no limit.</p>
+                </div>
+                <div class="edit-field">
+                    <label for="required_availability">Required availability <span class="edit-optional">(optional)</span></label>
+                    <select id="required_availability" name="required_availability">
+                        <?php foreach (['' => 'Not specified', 'weekdays' => 'Weekdays', 'weekends' => 'Weekends', 'both' => 'Both weekdays and weekends'] as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= $study['required_availability'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="edit-field">
+                    <label for="minimum_age">Minimum age <span class="edit-optional">(optional)</span></label>
+                    <input type="number" id="minimum_age" name="minimum_age" min="18" max="120" step="1"
+                           placeholder="18 to 120" value="<?= e($study['minimum_age']) ?>">
+                </div>
+                <div class="edit-field">
+                    <label for="maximum_age">Maximum age <span class="edit-optional">(optional)</span></label>
+                    <input type="number" id="maximum_age" name="maximum_age" min="18" max="120" step="1"
+                           placeholder="18 to 120" value="<?= e($study['maximum_age']) ?>">
+                </div>
+            </div>
+            <p class="edit-note">Age matching uses volunteer-selected age brackets, not exact ages. These matches are preliminary and do not confirm eligibility.</p>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-format-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">05</span>
+                <div><h3 id="edit-format-title">Format and location</h3><p>Tell volunteers how and where the study takes place.</p></div>
+            </div>
+            <div class="edit-fields edit-fields--two">
+                <div class="edit-field">
+                    <label for="participation_format">Participation format <span aria-hidden="true">*</span></label>
+                    <select id="participation_format" name="participation_format" required>
+                        <option value="">Select format</option>
+                        <?php foreach (['online' => 'Online', 'in_person' => 'In Person', 'hybrid' => 'Hybrid'] as $value => $label): ?>
+                            <option value="<?= e($value) ?>" <?= $study['participation_format'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="edit-field">
+                    <label for="location">Location <span class="edit-optional">(required for in-person or hybrid)</span></label>
+                    <input type="text" id="location" name="location" maxlength="150"
+                           placeholder="e.g. Newcastle upon Tyne" value="<?= e($study['location']) ?>">
+                </div>
+            </div>
+            <fieldset class="edit-fieldset edit-distance">
+                <legend>Postcode distance matching (optional)</legend>
+                <p class="edit-help">For in-person or hybrid studies only. Distances are approximate straight-line miles, not travel distances.</p>
+                <div class="edit-fields edit-fields--two">
+                    <div class="edit-field">
+                        <label for="study_postcode">Study postcode</label>
+                        <input type="text" id="study_postcode" name="study_postcode" maxlength="10"
+                               placeholder="e.g. NE1 8ST" autocomplete="postal-code" value="<?= e($study['study_postcode']) ?>">
+                    </div>
+                    <div class="edit-field">
+                        <label for="max_distance_miles">Maximum search radius (miles)</label>
+                        <input type="number" id="max_distance_miles" name="max_distance_miles" min="1" max="100" step="1"
+                               placeholder="1 to 100" value="<?= e($study['max_distance_miles']) ?>">
+                    </div>
+                </div>
+                <p class="edit-help">A study postcode is required if you set a radius. Do not enter postcode matching details for online studies.</p>
+            </fieldset>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-schedule-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">06</span>
+                <div><h3 id="edit-schedule-title">Study dates and reimbursement</h3><p>Choose the study timeline and any participant reimbursement.</p></div>
+            </div>
+            <div class="edit-fields edit-fields--three">
+                <?php foreach (['start_date' => 'Start date', 'end_date' => 'End date', 'application_deadline' => 'Application deadline'] as $field => $label): ?>
+                    <div class="edit-field">
+                        <label for="<?= e($field) ?>"><?= e($label) ?> <span class="edit-optional">(optional)</span></label>
+                        <input type="date" id="<?= e($field) ?>" name="<?= e($field) ?>" value="<?= e($study[$field]) ?>">
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <div class="edit-fields edit-fields--two edit-reimbursement">
+                <div class="edit-field">
+                    <label for="reimbursement_amount">Reimbursement amount (£) <span aria-hidden="true">*</span></label>
+                    <input type="number" id="reimbursement_amount" name="reimbursement_amount" min="0" max="99999999.99" step="0.01" required
+                           value="<?= e($study['reimbursement_amount']) ?>">
+                </div>
+                <div class="edit-field">
+                    <label for="reimbursement_details">Reimbursement details <span class="edit-optional">(optional)</span></label>
+                    <input type="text" id="reimbursement_details" name="reimbursement_details" maxlength="255"
+                           placeholder="e.g. Travel costs covered" value="<?= e($study['reimbursement_details']) ?>">
+                </div>
+            </div>
+        </section>
+
+        <section class="edit-card" aria-labelledby="edit-privacy-title">
+            <div class="edit-card__heading">
+                <span class="edit-card__number">07</span>
+                <div><h3 id="edit-privacy-title">Participation settings</h3><p>Specify whether anonymous participation is allowed.</p></div>
+            </div>
+            <label class="edit-checkbox" for="anonymous_participation_allowed">
+                <input type="checkbox" id="anonymous_participation_allowed" name="anonymous_participation_allowed" value="1"
+                       <?= !empty($study['anonymous_participation_allowed']) ? 'checked' : '' ?>>
+                <span><strong>Allow anonymous participation</strong><small>Participants may take part anonymously if the study permits it.</small></span>
             </label>
+        </section>
 
-            <input type="text"
-                   id="<?= e($field) ?>"
-                   name="<?= e($field) ?>"
-                   maxlength="<?= $max ?>"
-                   value="<?= e($study[$field]) ?>">
-        </p>
-    <?php endforeach; ?>
+        <div class="edit-save-panel">
+            <div>
+                <h2>Ready to save your changes?</h2>
+                <p>Your updates will be saved to this draft. Publishing is a separate action.</p>
+            </div>
+            <button class="btn btn--primary edit-submit" type="submit">Save changes</button>
+        </div>
+    </form>
 
-    <?php
-    $textareas = [
-        'aim' => 'Research Aim',
-        'description' => 'Study Description',
-        'participation_tasks' => 'Participant Tasks',
-        'eligibility_requirements' => 'Eligibility Requirements'
-    ];
+    <section class="edit-shortcuts" aria-label="Researcher shortcuts">
+        <div><h2>Continue managing your research</h2><p>Review your draft in My Studies or return to your dashboard.</p></div>
+        <div class="edit-shortcuts__links">
+            <a class="btn edit-btn--light" href="my-studies.php">My studies</a>
+            <a class="btn edit-btn--light" href="academic-dashboard.php">Dashboard</a>
+        </div>
+    </section>
+</main>
 
-    foreach ($textareas as $field => $label):
-    ?>
-        <p>
-            <label for="<?= e($field) ?>">
-                <?= e($label) ?>:
-            </label>
-
-            <textarea id="<?= e($field) ?>"
-                      name="<?= e($field) ?>"
-                      rows="4"
-                      maxlength="10000"
-                      required><?= e($study[$field]) ?></textarea>
-        </p>
-    <?php endforeach; ?>
-
-    <fieldset>
-        <legend>Eligibility screening questions (optional)</legend>
-        <p>Add up to five Yes/No questions and select the answer required to qualify.</p>
-    
-        <?php foreach ($eligibilityRows as $index => $row): ?>
-            <p>
-                <label for="eligibility_question_<?= $index ?>">
-                    Question <?= $index + 1 ?>:
-                </label>
-                <input type="text"
-                       id="eligibility_question_<?= $index ?>"
-                       name="eligibility_questions[<?= $index ?>]"
-                       maxlength="255"
-                       value="<?= e($row['question_text']) ?>">
-                <label for="eligibility_answer_<?= $index ?>">Required answer:</label>
-                <select id="eligibility_answer_<?= $index ?>"
-                        name="eligibility_answers[<?= $index ?>]">
-                    <option value="yes" <?= $row['required_answer'] === 'yes' ? 'selected' : '' ?>>Yes</option>
-                    <option value="no" <?= $row['required_answer'] === 'no' ? 'selected' : '' ?>>No</option>
-                </select>
-            </p>
-        <?php endforeach; ?>
-    </fieldset>
-
-    <p>
-        <label for="participant_capacity">Participant capacity (optional):</label>
-        <input type="number"
-               id="participant_capacity"
-               name="participant_capacity"
-               min="1"
-               max="10000"
-               step="1"
-               value="<?= e($study['participant_capacity'] ?? '') ?>">
-    </p>
-
-
-<fieldset>
-    <legend>Study matching requirements (optional)</legend>
-    <p>
-        <label for="required_availability">Required availability:</label>
-        <select id="required_availability" name="required_availability">
-            <?php foreach (['' => 'Not specified', 'weekdays' => 'Weekdays', 'weekends' => 'Weekends', 'both' => 'Both weekdays and weekends'] as $value => $label): ?>
-                <option value="<?= e($value) ?>" <?= ($study['required_availability'] ?? '') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
-            <?php endforeach; ?>
-        </select>
-    </p>
-    <p>
-        <label for="minimum_age">Minimum age:</label>
-        <input type="number" id="minimum_age" name="minimum_age" min="18" max="120" step="1" value="<?= e($study['minimum_age'] ?? '') ?>">
-    </p>
-    <p>
-        <label for="maximum_age">Maximum age:</label>
-        <input type="number" id="maximum_age" name="maximum_age" min="18" max="120" step="1" value="<?= e($study['maximum_age'] ?? '') ?>">
-    </p>
-    <p>Age matches are estimates based on volunteer-selected age brackets, not exact ages.</p>
-</fieldset>
-
-    <p>
-        <label for="participation_format">
-            Participation Format:
-        </label>
-
-        <select id="participation_format"
-                name="participation_format"
-                required>
-
-            <?php
-            $formats = [
-                'online' => 'Online',
-                'in_person' => 'In Person',
-                'hybrid' => 'Hybrid'
-            ];
-
-            foreach ($formats as $value => $label):
-            ?>
-                <option value="<?= e($value) ?>"
-                    <?= $study['participation_format'] === $value
-                        ? 'selected' : '' ?>>
-                    <?= e($label) ?>
-                </option>
-            <?php endforeach; ?>
-
-        </select>
-    </p>
-
-
-<fieldset>
-    <legend>Postcode distance matching (in-person or hybrid studies)</legend>
-    <p>
-        <label for="study_postcode">Study postcode (optional):</label>
-        <input type="text" id="study_postcode" name="study_postcode"
-               maxlength="10" placeholder="e.g. NE1 8ST"
-               value="<?= e($study['study_postcode']) ?>">
-    </p>
-    <p>
-        <label for="max_distance_miles">Maximum search radius in miles (optional):</label>
-        <input type="number" id="max_distance_miles" name="max_distance_miles"
-               min="1" max="100" step="1"
-               value="<?= e($study['max_distance_miles']) ?>">
-    </p>
-    <p>Distances are approximate straight-line miles, not journey distances.</p>
-</fieldset>
-
-    <?php
-    $dates = [
-        'start_date' => 'Start Date',
-        'end_date' => 'End Date',
-        'application_deadline' => 'Application Deadline'
-    ];
-
-    foreach ($dates as $field => $label):
-    ?>
-        <p>
-            <label for="<?= e($field) ?>">
-                <?= e($label) ?>:
-            </label>
-
-            <input type="date"
-                   id="<?= e($field) ?>"
-                   name="<?= e($field) ?>"
-                   value="<?= e($study[$field]) ?>">
-        </p>
-    <?php endforeach; ?>
-
-    <p>
-        <label for="reimbursement_amount">
-            Reimbursement (£):
-        </label>
-
-        <input type="number"
-               id="reimbursement_amount"
-               name="reimbursement_amount"
-               min="0"
-               max="99999999.99"
-               step="0.01"
-               value="<?= e($study['reimbursement_amount']) ?>"
-               required>
-    </p>
-
-    <p>
-        <label>
-            <input type="checkbox"
-                   name="anonymous_participation_allowed"
-                   value="1"
-                   <?= $study['anonymous_participation_allowed']
-                       ? 'checked' : '' ?>>
-
-            Anonymous participation allowed
-        </label>
-    </p>
-
-    <button type="submit">Save Changes</button>
-
-</form>
-
-<hr>
-
-<p>
-    <a href="my-studies.php">Back to My Studies</a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
