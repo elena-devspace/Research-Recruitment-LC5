@@ -1,0 +1,57 @@
+/* Send invitation — KV6014 Research Recruitment */
+.invite-page { padding-top: 28px; padding-bottom: 70px; }
+.invite-back { display: inline-block; margin-bottom: 22px; color: var(--navy-deep); text-decoration: none; font-size: 13px; font-weight: 700; }
+.invite-back:hover { text-decoration: underline; }
+.invite-hero { display: flex; align-items: center; justify-content: space-between; gap: 26px; background: var(--sky-pale); border: 1px solid #d0e2f1; border-radius: 20px; padding: clamp(28px,4vw,45px); }
+.invite-hero > div { min-width: 0; }
+.invite-hero h1 { margin: 14px 0 12px; color: var(--navy-deep); font-size: clamp(29px,3.4vw,42px); line-height: 1.16; letter-spacing: -.035em; }
+.invite-hero p { margin: 0; max-width: 645px; font-size: 15px; color: var(--muted); }
+.invite-hero__action { flex: 0 0 auto; font-size: 14px; white-space: nowrap; }
+.invite-feedback { margin: 20px 0 0; }
+.invite-section-title { margin-top: 38px; margin-bottom: 20px; }
+.invite-section-title h2 { margin: 7px 0 4px; color: var(--navy-deep); font-size: clamp(24px,2.8vw,30px); letter-spacing: -.02em; }
+.invite-section-title p { margin: 0; color: var(--muted); font-size: 13px; }
+.invite-layout { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(270px,.8fr); gap: 18px; align-items: start; }
+.invite-card { background: #fff; border: 1px solid var(--border); box-shadow: 0 8px 23px rgba(47,59,83,.045); border-radius: 17px; padding: clamp(20px,3vw,29px); min-width: 0; }
+.invite-card__heading { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 24px; }
+.invite-step { background: var(--sky); color: var(--navy-deep); flex: 0 0 40px; width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.invite-card__heading h3 { color: var(--navy-deep); font-size: 21px; line-height: 1.3; margin: 0; }
+.invite-card__heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.invite-form { display: grid; gap: 23px; }
+.invite-field { display: flex; flex-direction: column; gap: 9px; }
+.invite-field label { font-size: 13px; color: var(--navy-deep); font-weight: 700; }
+.invite-field label > span[aria-hidden] { color: #983e2a; }
+.invite-optional { color: var(--muted); font-size: 12px; font-weight: 400; }
+.invite-field select, .invite-field textarea { width: 100%; max-width: 100%; min-width: 0; border: 1px solid #bbcadb; border-radius: 9px; padding: 12px 13px; color: var(--text); background: #fff; }
+.invite-field select { min-height: 48px; }
+.invite-field textarea { resize: vertical; line-height: 1.55; }
+.invite-field textarea::placeholder { color: #78879c; }
+.invite-field__help { margin: 0; font-size: 12px; color: var(--muted); }
+.invite-submit { border-top: 1px solid #e0eaf2; padding-top: 18px; }
+.invite-submit p { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.invite-submit__button { width: 100%; min-height: 44px; }
+.invite-submit__button:disabled { opacity: .5; cursor: not-allowed; }
+.invite-empty { background: #f0f7fd; border: 1px solid #d0e3f4; border-radius: 12px; padding: 19px; margin-bottom: 18px; }
+.invite-empty strong { color: var(--navy-deep); }
+.invite-empty p { margin: 7px 0 16px; color: var(--muted); font-size: 13px; }
+.invite-volunteer { display: flex; align-items: center; gap: 13px; margin-bottom: 19px; }
+.invite-volunteer__avatar { flex: 0 0 48px; height: 48px; background: var(--sky); color: var(--navy-deep); border-radius: 12px; display: grid; place-items: center; font-size: 14px; font-weight: 700; }
+.invite-volunteer h4 { color: var(--navy-deep); font-size: 19px; margin: 0; }
+.invite-volunteer p { color: var(--muted); font-size: 12px; margin: 3px 0 0; }
+.invite-detail-box { background: #eff8ff; border-radius: 10px; padding: 14px; margin-bottom: 10px; display: grid; gap: 5px; }
+.invite-detail-box span { color: var(--muted); font-size: 12px; }
+.invite-detail-box strong { color: var(--navy-deep); font-size: 13px; }
+.invite-privacy-note { background: #f0f4f9; border-radius: 10px; padding: 17px; margin-top: 18px; }
+.invite-privacy-note strong { color: var(--navy-deep); font-size: 14px; }
+.invite-privacy-note p { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 7px 0 0; }
+.invite-btn--light { background: #fff; color: var(--navy-deep); border: 1px solid #c6d7e5; font-size: 13px; }
+.invite-btn--light:hover { background: var(--sky-pale); }
+.invite-details__link { display: flex; width: 100%; margin-top: 15px; }
+.invite-shortcuts { display: flex; justify-content: space-between; align-items: center; gap: 22px; margin-top: 28px; padding: 22px 26px; background: #eff8ff; border: 1px solid #d0e2f1; border-radius: 16px; }
+.invite-shortcuts h2 { margin: 0 0 5px; font-size: 19px; color: var(--navy-deep); }
+.invite-shortcuts p { margin: 0; color: var(--muted); font-size: 13px; }
+.invite-shortcuts__links { display: flex; flex-wrap: wrap; gap: 10px; }
+.invite-shortcuts__links .btn { white-space: nowrap; }
+@media (max-width: 920px) { .invite-layout { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .invite-page { padding: 24px 0 42px; } .invite-hero { align-items: flex-start; flex-direction: column; } .invite-shortcuts { flex-direction: column; align-items: flex-start; } }
+@media (max-width: 470px) { .invite-hero { padding: 25px 20px; } .invite-hero__action { width: 100%; } .invite-card { padding: 20px 17px; } .invite-shortcuts { padding: 20px 17px; } .invite-shortcuts__links, .invite-shortcuts__links .btn { width: 100%; } }

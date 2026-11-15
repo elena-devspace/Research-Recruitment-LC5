@@ -111,6 +111,10 @@ if (empty($_SESSION['request_csrf'])) {
     );
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $error = '';
 $message = '';
 $selectedStudyId = 0;
@@ -319,162 +323,183 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit('Method not allowed.');
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Invite Volunteer - Research Recruitment
-    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invite Volunteer | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/send-request.css">
 </head>
 <body>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="academic-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="academic-dashboard.php">Dashboard</a>
+            <a href="my-studies.php">My studies</a>
+            <a href="review-applications.php">Applications</a>
+            <a href="find-volunteers.php" aria-current="page">Find volunteers</a>
+            <a href="my-sent-requests.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= escapeInvite($_SESSION['csrf_token']) ?>">
+                <button class="dashboard-logout__button" type="submit">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
 
-<h1>Research Recruitment</h1>
+<main class="page-shell invite-page">
+    <a class="invite-back" href="find-volunteers.php">← Back to find volunteers</a>
 
-<h2>Invite Volunteer</h2>
+    <section class="invite-hero" aria-labelledby="invite-title">
+        <div>
+            <span class="eyebrow">Your research workspace</span>
+            <h1 id="invite-title">Invite a research volunteer</h1>
+            <p>Welcome back, <?= escapeInvite($user['first_name'] ?? '') ?>! Choose one of your open studies and send a private invitation to a suitable volunteer.</p>
+        </div>
+        <a class="btn btn--primary invite-hero__action" href="my-sent-requests.php">Sent invitations</a>
+    </section>
 
-<h3>Volunteer #<?= (int) $volunteerId ?></h3>
-<p>Personal contact details are private until this volunteer accepts an invitation.</p>
-
-<p>
-    Volunteer ID:
-    <?= (int) $volunteerId ?>
-</p>
-
-<?php if ($success): ?>
-
-    <p role="status">
-        Participation request sent successfully!
-    </p>
-
-<?php endif; ?>
-
-<?php if ($error !== ''): ?>
-
-    <p role="alert">
-        <?= escapeInvite($error) ?>
-    </p>
-
-<?php endif; ?>
-
-<?php if (empty($studies)): ?>
-
-    <p>
-        You have no open research studies
-        available for invitations.
-    </p>
-
-<?php else: ?>
-
-    <h3>Send Research Invitation</h3>
-
-    <?php if ($availableStudyCount === 0): ?>
-        <p role="status">All your open studies are full. No further invitations can be sent.</p>
+    <?php if ($success): ?>
+        <div class="feedback feedback--success invite-feedback" role="status">
+            Participation request sent successfully! The volunteer can respond from their invitations page.
+        </div>
     <?php endif; ?>
 
-    <form
-        method="POST"
-        action="send-request.php?volunteer_id=<?= (int) $volunteerId ?>"
-    >
+    <?php if ($error !== ''): ?>
+        <div class="feedback feedback--error invite-feedback" role="alert">
+            <?= escapeInvite($error) ?>
+        </div>
+    <?php endif; ?>
 
-        <input
-            type="hidden"
-            name="csrf_token"
-            value="<?= escapeInvite($_SESSION['request_csrf']) ?>"
-        >
+    <div class="invite-section-title">
+        <span class="eyebrow">Research invitation</span>
+        <h2>Prepare your invitation</h2>
+        <p>Only verified researchers can invite volunteers who have opted into discovery.</p>
+    </div>
 
-        <p>
-            <label for="study_id">
-                Choose Research Study:
-            </label>
+    <div class="invite-layout">
+        <section class="invite-card invite-card--form" aria-labelledby="invite-form-title">
+            <div class="invite-card__heading">
+                <span class="invite-step">01</span>
+                <div>
+                    <h3 id="invite-form-title">Send a research invitation</h3>
+                    <p>Choose a study, add an optional message and send your request.</p>
+                </div>
+            </div>
 
-            <select
-                id="study_id"
-                name="study_id"
-                required
-            >
+            <?php if (empty($studies)): ?>
+                <div class="invite-empty" role="status">
+                    <strong>No open studies available</strong>
+                    <p>Create and publish a research study before inviting volunteers.</p>
+                    <a class="btn btn--primary" href="my-studies.php">Go to my studies</a>
+                </div>
+            <?php else: ?>
+                <?php if ($availableStudyCount === 0): ?>
+                    <div class="invite-empty" role="status">
+                        <strong>All your open studies are full</strong>
+                        <p>No further invitations can be sent until a study has capacity.</p>
+                    </div>
+                <?php endif; ?>
 
-                <option value="">
-                    Select study
-                </option>
+                <form method="post" action="send-request.php?volunteer_id=<?= (int) $volunteerId ?>" class="invite-form">
+                    <input type="hidden" name="csrf_token" value="<?= escapeInvite($_SESSION['request_csrf']) ?>">
 
-                <?php foreach ($studies as $study): ?>
-                    <?php
-                    $remaining = $capacityByStudy[(int) $study['study_id']]['remaining'];
-                    $isFull = $remaining !== null && $remaining < 1;
-                    ?>
+                    <div class="invite-field">
+                        <label for="study_id">Choose research study <span aria-hidden="true">*</span></label>
+                        <select id="study_id" name="study_id" required <?= $availableStudyCount === 0 ? 'disabled' : '' ?>>
+                            <option value="">Select an open study</option>
+                            <?php foreach ($studies as $study): ?>
+                                <?php
+                                $remaining = $capacityByStudy[(int) $study['study_id']]['remaining'];
+                                $isFull = $remaining !== null && $remaining < 1;
+                                ?>
+                                <option
+                                    value="<?= (int) $study['study_id'] ?>"
+                                    <?= $selectedStudyId === (int) $study['study_id'] ? 'selected' : '' ?>
+                                    <?= $isFull ? 'disabled' : '' ?>
+                                ><?= escapeInvite($study['title']) ?><?= (int) $study['is_test'] === 1 ? ' (Fictional test study)' : '' ?><?= $isFull ? ' — Full (0 spaces)' : ($remaining === null ? ' — No capacity limit' : ' — ' . (int) $remaining . ' spaces left') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="invite-field__help">Full studies are unavailable. Invitations still require the study to remain open and have capacity.</p>
+                    </div>
 
-                    <option
-                        value="<?= (int) $study['study_id'] ?>"
-                        <?= $selectedStudyId === (int) $study['study_id']
-                            ? 'selected'
-                            : '' ?>
-                        <?= $isFull ? 'disabled' : '' ?>
-                    >
-                        <?= escapeInvite($study['title']) ?>
-                        <?= (int) $study['is_test'] === 1
-                            ? ' (Fictional Test Study)'
-                            : '' ?>
-                        <?= $isFull
-                            ? ' — Full (0 spaces remaining)'
-                            : ($remaining === null
-                                ? ' — No capacity limit'
-                                : ' — ' . $remaining . ' spaces remaining') ?>
-                    </option>
+                    <div class="invite-field">
+                        <label for="message">Invitation message <span class="invite-optional">(optional)</span></label>
+                        <textarea id="message" name="message" rows="7" maxlength="1000" placeholder="Tell the volunteer why their profile could be a good fit for your research…"><?= escapeInvite($message) ?></textarea>
+                        <p class="invite-field__help">Maximum 1,000 bytes. Your message is visible to the invited volunteer.</p>
+                    </div>
 
-                <?php endforeach; ?>
+                    <div class="invite-submit">
+                        <p>Your invitation will appear in the volunteer's invitation history.</p>
+                        <button class="btn btn--primary invite-submit__button" type="submit" <?= $availableStudyCount === 0 ? 'disabled' : '' ?>>Send invitation</button>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </section>
 
-            </select>
-        </p>
+        <aside class="invite-card invite-card--details" aria-label="Volunteer and privacy details">
+            <div class="invite-card__heading">
+                <span class="invite-step">02</span>
+                <div>
+                    <h3>Volunteer details</h3>
+                    <p>Privacy is protected during recruitment.</p>
+                </div>
+            </div>
 
-        <p>
-            <label for="message">
-                Invitation Message:
-            </label>
-        </p>
+            <div class="invite-volunteer">
+                <div class="invite-volunteer__avatar" aria-hidden="true">#<?= (int) $volunteerId ?></div>
+                <div>
+                    <h4>Volunteer #<?= (int) $volunteerId ?></h4>
+                    <p>Research volunteer · ID <?= (int) $volunteerId ?></p>
+                </div>
+            </div>
 
-        <textarea
-            id="message"
-            name="message"
-            rows="5"
-            cols="55"
-            maxlength="1000"
-        ><?= escapeInvite($message) ?></textarea>
+            <div class="invite-detail-box">
+                <span>Profile visibility</span>
+                <strong>Opted into researcher searches</strong>
+            </div>
+            <div class="invite-detail-box">
+                <span>Volunteer identity</span>
+                <strong>Hidden until participation is accepted</strong>
+            </div>
 
-        <p>
-            <button type="submit" <?= $availableStudyCount === 0 ? 'disabled' : '' ?>>
-                Send Invitation
-            </button>
-        </p>
+            <div class="invite-privacy-note">
+                <strong>Volunteer privacy</strong>
+                <p>Names and contact details are not available at this stage. Send an invitation and wait for the volunteer to accept before contacting them.</p>
+            </div>
 
-    </form>
+            <a class="btn invite-btn--light invite-details__link" href="find-volunteers.php">Return to volunteer search</a>
+        </aside>
+    </div>
 
-<?php endif; ?>
+    <aside class="invite-shortcuts" aria-label="Research navigation">
+        <div>
+            <h2>Keep your recruitment organised</h2>
+            <p>Track invitations, manage studies or return to your dashboard.</p>
+        </div>
+        <div class="invite-shortcuts__links">
+            <a class="btn invite-btn--light" href="my-sent-requests.php">Sent invitations</a>
+            <a class="btn invite-btn--light" href="my-studies.php">My studies</a>
+            <a class="btn invite-btn--light" href="academic-dashboard.php">Dashboard</a>
+        </div>
+    </aside>
+</main>
 
-<p>
-    <a href="find-volunteers.php">
-        Back to Find Volunteers
-    </a>
-</p>
-
-<p>
-    <a href="my-sent-requests.php">
-        View My Sent Invitations
-    </a>
-</p>
-
-<p>
-    <a href="academic-dashboard.php">
-        Back to Academic Dashboard
-    </a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Site information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
