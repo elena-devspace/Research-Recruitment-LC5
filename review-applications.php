@@ -222,200 +222,234 @@ foreach ($applications as $application) {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>Review Volunteer Applications</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Applications | Research Recruitment</title>
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/review-applications.css">
 </head>
 <body>
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="brand" href="academic-dashboard.php">
+            <span class="brand__mark">LOGO</span>
+            <span class="brand__name">Research Recruitment</span>
+        </a>
+        <nav class="site-nav dashboard-nav" aria-label="Main navigation">
+            <a href="academic-dashboard.php">Dashboard</a>
+            <a href="my-studies.php">My studies</a>
+            <a href="review-applications.php" aria-current="page">Applications</a>
+            <a href="find-volunteers.php">Find volunteers</a>
+            <a href="my-sent-requests.php">Invitations</a>
+            <a href="profile.php">My profile</a>
+            <form action="logout.php" method="post" class="dashboard-logout">
+                <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                <button class="dashboard-logout__button" type="submit">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
 
-<h1>Research Recruitment</h1>
-<h2>Review Volunteer Applications</h2>
+<?php
+$reviewCounts = ['pending' => 0, 'accepted' => 0, 'rejected' => 0, 'withdrawn' => 0];
+foreach ($applications as $application) {
+    if (isset($reviewCounts[$application['status']])) {
+        $reviewCounts[$application['status']]++;
+    }
+}
+?>
 
-<p>
-    Welcome, <?= e($user['first_name']) ?>!
-</p>
+<main class="page-shell review-page">
+    <section class="review-hero" aria-labelledby="review-title">
+        <div class="review-hero__copy">
+            <span class="eyebrow">Your research workspace</span>
+            <h1 id="review-title">Review volunteer applications</h1>
+            <p>Welcome back, <?= e($user['first_name']) ?>! Review eligibility answers, respond to applications and keep recruitment moving.</p>
+        </div>
+        <a class="btn btn--primary review-hero__action" href="my-studies.php">My research studies</a>
+    </section>
 
-<p>
-    Total Applications: <?= count($applications) ?>
-</p>
+    <?php if ($notice !== ''): ?>
+        <div class="feedback feedback--success review-feedback" role="status"><?= e($notice) ?></div>
+    <?php endif; ?>
 
-<p>
-    Pending Applications: <?= $pendingCount ?>
-</p>
+    <?php if ($error !== ''): ?>
+        <div class="feedback feedback--error review-feedback" role="alert"><?= e($error) ?></div>
+    <?php endif; ?>
 
-<?php if ($notice !== ''): ?>
-    <p role="status"><?= e($notice) ?></p>
-<?php endif; ?>
+    <section class="review-overview" aria-labelledby="review-overview-heading">
+        <div class="review-section-heading">
+            <div>
+                <span class="eyebrow">Application overview</span>
+                <h2 id="review-overview-heading">Your recruitment at a glance</h2>
+            </div>
+            <p><?= count($applications) ?> total application<?= count($applications) === 1 ? '' : 's' ?></p>
+        </div>
+        <div class="review-summary-grid">
+            <div class="review-summary-card">
+                <span>Pending</span>
+                <strong><?= (int)$reviewCounts['pending'] ?></strong>
+                <p>Awaiting your decision</p>
+            </div>
+            <div class="review-summary-card">
+                <span>Accepted</span>
+                <strong><?= (int)$reviewCounts['accepted'] ?></strong>
+                <p>Approved for participation</p>
+            </div>
+            <div class="review-summary-card">
+                <span>Rejected</span>
+                <strong><?= (int)$reviewCounts['rejected'] ?></strong>
+                <p>Not selected</p>
+            </div>
+            <div class="review-summary-card">
+                <span>Withdrawn</span>
+                <strong><?= (int)$reviewCounts['withdrawn'] ?></strong>
+                <p>Withdrawn by volunteers</p>
+            </div>
+        </div>
+    </section>
 
-<?php if ($error !== ''): ?>
-    <p role="alert"><?= e($error) ?></p>
-<?php endif; ?>
+    <section class="review-history" aria-labelledby="review-history-heading">
+        <div class="review-section-heading">
+            <div>
+                <span class="eyebrow">Application history</span>
+                <h2 id="review-history-heading">Applications to your studies</h2>
+            </div>
+            <p>Pending applications appear first.</p>
+        </div>
 
-<hr>
+        <?php if (empty($applications)): ?>
+            <div class="review-empty">
+                <h3>No applications received yet</h3>
+                <p>When volunteers apply to your research studies, their applications and screening answers will appear here.</p>
+                <a class="btn btn--primary" href="my-studies.php">View my studies</a>
+            </div>
+        <?php else: ?>
+            <div class="review-card-grid">
+                <?php foreach ($applications as $application): ?>
+                    <?php
+                        $applicationId = (int)$application['application_id'];
+                        $studyId = (int)$application['study_id'];
+                        $status = (string)$application['status'];
+                        $capacity = $capacityByStudy[$studyId];
+                        $responses = $screeningByApplication[$applicationId] ?? [];
+                    ?>
+                    <article class="review-card" aria-labelledby="application-heading-<?= $applicationId ?>">
+                        <div class="review-card__badges">
+                            <?php if ($application['is_test']): ?>
+                                <span class="review-card__test">Fictional test study</span>
+                            <?php endif; ?>
+                            <span class="review-card__status review-card__status--<?= e($status) ?>"><?= e(ucfirst($status)) ?></span>
+                        </div>
+                        <h3 id="application-heading-<?= $applicationId ?>"><?= e($application['study_title']) ?></h3>
+                        <p class="review-card__subtitle">Application #<?= $applicationId ?> · Volunteer #<?= (int)$application['volunteer_id'] ?></p>
 
-<?php if (empty($applications)): ?>
+                        <dl class="review-card__metadata">
+                            <div><dt>Study ID</dt><dd>#<?= $studyId ?></dd></div>
+                            <div><dt>Spaces remaining</dt><dd><?= $capacity['remaining'] === null ? 'No limit set' : (int)$capacity['remaining'] . ' of ' . (int)$capacity['capacity'] ?></dd></div>
+                            <div><dt>Applied at</dt><dd><?= e($application['applied_at']) ?></dd></div>
+                            <?php if ($application['reviewed_at']): ?>
+                                <div><dt>Reviewed at</dt><dd><?= e($application['reviewed_at']) ?></dd></div>
+                            <?php endif; ?>
+                        </dl>
 
-    <p>No volunteer applications received yet.</p>
+                        <?php if ($status === 'accepted'): ?>
+                            <div class="review-card__privacy review-card__privacy--accepted">
+                                <strong>Volunteer contact details</strong>
+                                <p><?= e(trim(($application['first_name'] ?? '') . ' ' . ($application['last_name'] ?? ''))) ?></p>
+                                <p>Preferred contact: <?= e(ucfirst((string)($application['contact_method'] ?? 'email'))) ?></p>
+                                <?php if ($application['contact_method'] === 'phone'): ?>
+                                    <p>Phone: <?= e($application['phone_number'] ?: 'Not supplied') ?></p>
+                                <?php else: ?>
+                                    <p>Email: <?= e($application['email']) ?></p>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="review-card__privacy">Volunteer identity and contact details remain private unless their application is accepted.</p>
+                        <?php endif; ?>
 
-<?php else: ?>
+                        <section class="review-card__section">
+                            <h4>Application message</h4>
+                            <p><?= nl2br(e($application['message'] ?: 'No message provided.')) ?></p>
+                        </section>
 
-    <?php foreach ($applications as $application): ?>
+                        <section class="review-card__section review-card__screening">
+                            <h4>Eligibility screening responses</h4>
+                            <?php if ($responses): ?>
+                                <ol class="review-card__screening-list">
+                                    <?php foreach ($responses as $response): ?>
+                                        <?php $matchesRequired = strtolower((string)$response['answer']) === strtolower((string)$response['required_answer']); ?>
+                                        <li>
+                                            <p class="review-card__question"><?= e($response['question_text']) ?></p>
+                                            <div class="review-card__answers">
+                                                <span>Answer: <strong><?= e(ucfirst($response['answer'])) ?></strong></span>
+                                                <span>Required: <strong><?= e(ucfirst($response['required_answer'])) ?></strong></span>
+                                            </div>
+                                            <span class="review-card__match <?= $matchesRequired ? 'review-card__match--yes' : 'review-card__match--no' ?>">
+                                                <?= $matchesRequired ? 'Matches required answer' : 'Does not match required answer' ?>
+                                            </span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ol>
+                            <?php else: ?>
+                                <p>No screening responses recorded for this application.</p>
+                            <?php endif; ?>
+                            <p class="review-card__screening-note">Screening answers support review but do not automatically confirm eligibility.</p>
+                        </section>
 
-        <section>
+                        <div class="review-card__actions">
+                            <?php if ($status === 'pending'): ?>
+                                <h4>Review application</h4>
+                                <form method="post" action="review-applications.php" class="review-decision-form">
+                                    <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+                                    <input type="hidden" name="application_id" value="<?= $applicationId ?>">
+                                    <?php if ($capacity['remaining'] === null || $capacity['remaining'] > 0): ?>
+                                        <button class="btn btn--primary review-decision-form__accept" type="submit" name="decision" value="accepted">Accept application</button>
+                                    <?php else: ?>
+                                        <p class="review-card__capacity-warning" role="status">This study is full. No more applications can be accepted.</p>
+                                    <?php endif; ?>
+                                    <button class="btn review-decision-form__reject" type="submit" name="decision" value="rejected">Reject application</button>
+                                </form>
+                            <?php else: ?>
+                                <p class="review-card__processed review-card__processed--<?= e($status) ?>">
+                                    <?php if ($status === 'accepted'): ?>This application has been accepted.
+                                    <?php elseif ($status === 'rejected'): ?>This application has been rejected.
+                                    <?php elseif ($status === 'withdrawn'): ?>This application was withdrawn by the volunteer.
+                                    <?php else: ?>This application has already been processed.
+                                    <?php endif; ?>
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
 
-            <h3>
-                <?= e($application['study_title']) ?>
-            </h3>
+    <section class="review-shortcuts" aria-label="Researcher navigation">
+        <div>
+            <h2>Keep your recruitment organised</h2>
+            <p>Manage your studies, find volunteers or return to your dashboard.</p>
+        </div>
+        <div class="review-shortcuts__links">
+            <a class="btn review-btn--light" href="my-studies.php">My studies</a>
+            <a class="btn review-btn--light" href="find-volunteers.php">Find volunteers</a>
+            <a class="btn review-btn--light" href="academic-dashboard.php">Dashboard</a>
+        </div>
+    </section>
+</main>
 
-            <?php if ($application['is_test']): ?>
-                <p>
-                    <strong>
-                        FICTIONAL TEST STUDY
-                    </strong>
-                </p>
-            <?php endif; ?>
-
-            <p>
-                Application ID:
-                <?= (int)$application['application_id'] ?>
-            </p>
-
-            <p>Volunteer ID: <?= (int) $application['volunteer_id'] ?></p>
-
-            <?php if ($application['status'] === 'accepted'): ?>
-                <p>Volunteer: <?= e($application['first_name']) ?> <?= e($application['last_name']) ?></p>
-                <p>Preferred contact method: <?= e(ucfirst($application['contact_method'])) ?></p>
-                <?php if ($application['contact_method'] === 'phone'): ?>
-                    <p>Phone: <?= e($application['phone_number'] ?: 'Not supplied') ?></p>
-                <?php else: ?>
-                    <p>Email: <?= e($application['email']) ?></p>
-                <?php endif; ?>
-            <?php else: ?>
-                <p>Identity and contact details are private while this application is not accepted.</p>
-            <?php endif; ?>
-
-            <?php $capacity = $capacityByStudy[(int)$application['study_id']]; ?>
-            <p>
-                Spaces remaining:
-                <?= $capacity['remaining'] === null
-                    ? 'No limit set'
-                    : $capacity['remaining'] . ' of ' . $capacity['capacity'] ?>
-            </p>
-
-            <p>
-                Applied At:
-                <?= e($application['applied_at']) ?>
-            </p>
-
-            <p>
-                Status:
-                <strong>
-                    <?= e($application['status']) ?>
-                </strong>
-            </p>
-
-            <h4>Application Message</h4>
-
-            <p>
-                <?= nl2br(e(
-                    $application['message']
-                    ?: 'No message provided.'
-                )) ?>
-            </p>
-
-            <h4>Eligibility Screening Responses</h4>
-
-            <?php $responses = $screeningByApplication[(int)$application['application_id']] ?? []; ?>
-            <?php if ($responses): ?>
-                <ol>
-                    <?php foreach ($responses as $response): ?>
-                        <li>
-                            <?= e($response['question_text']) ?>
-                            — Answer: <?= e(ucfirst($response['answer'])) ?>
-                            (Required: <?= e(ucfirst($response['required_answer'])) ?>)
-                        </li>
-                    <?php endforeach; ?>
-                </ol>
-            <?php else: ?>
-                <p>No screening responses recorded for this application.</p>
-            <?php endif; ?>
-
-            <?php if ($application['reviewed_at']): ?>
-                <p>
-                    Reviewed At:
-                    <?= e($application['reviewed_at']) ?>
-                </p>
-            <?php endif; ?>
-
-            <?php if ($application['status'] === 'pending'): ?>
-
-                <h4>Review Application</h4>
-
-                <form
-                    method="post"
-                    action="review-applications.php"
-                >
-
-                    <input
-                        type="hidden"
-                        name="csrf_token"
-                        value="<?= e($_SESSION['csrf_token']) ?>"
-                    >
-
-                    <input
-                        type="hidden"
-                        name="application_id"
-                        value="<?= (int)$application['application_id'] ?>"
-                    >
-
-                    <?php if ($capacity['remaining'] === null || $capacity['remaining'] > 0): ?>
-                    <button
-                        type="submit"
-                        name="decision"
-                        value="accepted"
-                    >
-                        Accept Application
-                    </button>
-                    <?php else: ?>
-                        <p>This study is full. New applications cannot be accepted.</p>
-                    <?php endif; ?>
-
-                    <button
-                        type="submit"
-                        name="decision"
-                        value="rejected"
-                    >
-                        Reject Application
-                    </button>
-
-                </form>
-
-            <?php else: ?>
-
-                <p>
-                    This application has already been processed.
-                </p>
-
-            <?php endif; ?>
-
-        </section>
-
-        <hr>
-
-    <?php endforeach; ?>
-
-<?php endif; ?>
-
-<p>
-    <a href="academic-dashboard.php">
-        Back to Academic Dashboard
-    </a>
-</p>
-
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <span>© 2026 Research Recruitment · KV6014 university project</span>
+        <div class="site-footer__items" aria-label="Additional information">
+            <span>Privacy Policy</span><span>Contact</span><span>Terms</span>
+        </div>
+    </div>
+</footer>
 </body>
 </html>
